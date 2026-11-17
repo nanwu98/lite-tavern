@@ -25,6 +25,7 @@ import type { Character, Chat, WorldBook } from './types';
 import { flushPersist, snapshotNow } from './store';
 import { applyTheme, onSystemThemeChange } from './lib/theme';
 import { clearRestoredFlag, snapshotWasRestored } from './lib/snapshot';
+import { checkForUpdates, isAndroidApp } from './lib/update';
 
 type ConfirmState =
   { kind: 'chat'; chat: Chat } | { kind: 'character'; character: Character } | null;
@@ -50,6 +51,7 @@ function Welcome({
   onOpenCards,
   onOpenSettings,
   onDelete,
+  updateReady,
 }: {
   characters: Character[];
   onPick: (id: string) => void;
@@ -59,6 +61,7 @@ function Welcome({
   onOpenCards: () => void;
   onOpenSettings: () => void;
   onDelete: (character: Character) => void;
+  updateReady?: boolean;
 }) {
   return (
     <main className="chat-view welcome">
@@ -75,6 +78,7 @@ function Welcome({
           </button>
           <button className="icon-btn" onClick={onOpenSettings} aria-label="设置">
             <IconSettings />
+            {updateReady && <span className="update-dot" title="有新版本可用" />}
           </button>
         </div>
       </div>
@@ -177,6 +181,17 @@ export default function App() {
   const [leftOpen, setLeftOpen] = useState(false);
   const [rightOpen, setRightOpen] = useState(false);
   const [importing, setImporting] = useState(false);
+  const updateInfo = useStore((s) => s.updateInfo);
+  const updateSeenVersion = useStore((s) => s.updateSeenVersion);
+  const setUpdateInfo = useStore((s) => s.setUpdateInfo);
+  const setUpdateChecking = useStore((s) => s.setUpdateChecking);
+  const markUpdateSeen = useStore((s) => s.markUpdateSeen);
+
+  // A newer release exists and the user has not opened the settings since.
+  const updateReady =
+    updateInfo?.status === 'available' &&
+    Boolean(updateInfo.latest) &&
+    updateInfo.latest !== updateSeenVersion;
 
   const chat = useMemo(() => selectActiveChat({ chats, activeChatId }), [chats, activeChatId]);
   const character = useMemo(
@@ -254,11 +269,55 @@ export default function App() {
       });
   }, [hydrated, bossKeyEnabled, bossKey, toast]);
 
+  /**
+   * Silent update check on launch.
+   *
+   * Runs once, a moment after the first paint, and never blocks the UI: the
+   * result only lights a dot on the settings buttons and pre-fills
+   * 设置 → 关于与更新, so the user can look at the release notes whenever they
+   * want instead of getting a modal in the middle of a story.
+   */
+  useEffect(() => {
+    if (!hydrated) return;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      void (async () => {
+        setUpdateChecking(true);
+        try {
+          const bridge = window.liteTavern;
+          const result = bridge?.checkUpdate
+            ? await bridge.checkUpdate()
+            : await checkForUpdates(__APP_VERSION__, isAndroidApp() ? 'android' : 'windows');
+          if (cancelled) return;
+          setUpdateInfo({ ...result, checkedAt: Date.now() });
+        } catch (cause) {
+          if (cancelled) return;
+          setUpdateInfo({
+            status: 'error',
+            current: __APP_VERSION__,
+            error: cause instanceof Error ? cause.message : String(cause),
+            checkedAt: Date.now(),
+          });
+        } finally {
+          if (!cancelled) setUpdateChecking(false);
+        }
+      })();
+    }, 1600);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [hydrated, setUpdateChecking, setUpdateInfo]);
+
   const openSettings = useCallback(() => {
     setSettingsOpen(true);
     setLeftOpen(false);
     setRightOpen(false);
-  }, []);
+    // Opening the settings is the acknowledgement: the release notes are right
+    // there under 关于与更新, so the dot has done its job.
+    const latest = useStore.getState().updateInfo?.latest;
+    if (latest && latest !== useStore.getState().updateSeenVersion) markUpdateSeen(latest);
+  }, [markUpdateSeen]);
 
   const startNewChat = useCallback(() => {
     const state = useStore.getState();
@@ -530,6 +589,7 @@ export default function App() {
           setLeftOpen(false);
           setRightOpen(true);
         }}
+        updateReady={updateReady}
       />
 
       {chat && character ? (
@@ -549,6 +609,7 @@ export default function App() {
           onOpenSettings={openSettings}
           onNewChat={startNewChat}
           onDeleteChat={() => requestDeleteChat(chat)}
+          updateReady={updateReady}
         />
       ) : (
         <Welcome
@@ -568,6 +629,7 @@ export default function App() {
           onOpenCards={() => setRightOpen(true)}
           onOpenSettings={openSettings}
           onDelete={requestDeleteCharacter}
+          updateReady={updateReady}
         />
       )}
 

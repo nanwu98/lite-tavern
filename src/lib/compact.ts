@@ -4,6 +4,7 @@ import type { Character, Chat, ChatMessage, Settings, WorldBook } from '../types
 import { streamChat } from './api';
 import { useStore } from '../store';
 import { estimateTokens } from './tokens';
+import { settingsForChat, contextLimitFor } from './chatSettings';
 
 /**
  * Context compaction.
@@ -146,6 +147,9 @@ export async function compactChat(
   if (!character) throw new Error('角色卡不存在，无法压缩。');
   const settings = options.settings ?? state.settings;
   if (!settings.apiKey.trim()) throw new Error('压缩需要调用模型：请先在设置里填写 API Key。');
+  // A chat may override the context window; the summarizer's chunk budget has to
+  // follow the same limit as the usage meter.
+  const effective = settingsForChat(settings, chat);
 
   const usable = usableMessages(chat.messages);
   const previous = chat.compaction;
@@ -158,7 +162,7 @@ export async function compactChat(
   const target = usable.slice(plan.from, plan.to);
   const tail = usable.slice(plan.to);
   const beforeTokens = totalTokens(usable);
-  const chunkBudget = Math.round(Math.min(16_000, Math.max(2_500, settings.contextLimit * 0.12)));
+  const chunkBudget = Math.round(Math.min(16_000, Math.max(2_500, effective.contextLimit * 0.12)));
   const chunks = chunkMessages(target, chunkBudget);
 
   let summary = previous?.summary?.trim() ?? '';
@@ -166,7 +170,7 @@ export async function compactChat(
     const transcript = renderTranscript(chunks[index], character, settings);
     const messages = buildSummaryMessages(summary, transcript);
     const text = await streamChat({
-      settings: { ...settings, stream: false, temperature: 0.3, maxTokens: 1500 },
+      settings: { ...effective, stream: false, temperature: 0.3, maxTokens: 1500 },
       messages,
       signal: options.signal,
     });
@@ -215,7 +219,8 @@ export function contextUsage(
   chat: Chat,
   settings: Settings,
 ): ContextUsage {
-  const limit = Math.max(1000, Math.round(settings.contextLimit) || 65536);
+  // Honours a per-chat context window, so the meter and the 80% trigger agree.
+  const limit = contextLimitFor(settings, chat);
   const prompt = buildPrompt(character, books, chat.messages, settings, chat.compaction);
   return { tokens: prompt.tokens, limit, ratio: prompt.tokens / limit };
 }

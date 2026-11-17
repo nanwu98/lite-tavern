@@ -119,6 +119,15 @@ export interface ChatCompaction {
   savedTokens?: number;
 }
 
+/**
+ * Per-conversation overrides of the global settings.
+ * Only fields that can sensibly differ between two conversations live here.
+ */
+export interface ChatOverrides {
+  /** Context window in tokens for this chat (falls back to `Settings.contextLimit`). */
+  contextLimit?: number;
+}
+
 export interface Chat {
   id: string;
   characterId: string;
@@ -128,6 +137,10 @@ export interface Chat {
   updatedAt: number;
   /** Present once the chat has been compacted at least once. */
   compaction?: ChatCompaction;
+  /** Per-chat overrides of the global model settings. */
+  overrides?: ChatOverrides;
+  /** Data URL of the picture shown behind this conversation. */
+  background?: string;
 }
 
 export type ThemeMode = 'system' | 'dark' | 'light';

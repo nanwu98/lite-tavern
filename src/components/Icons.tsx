@@ -175,6 +175,24 @@ export const IconArchive = (p: P) => (
   </svg>
 );
 
+/** Picture / background image. */
+export const IconImage = (p: P) => (
+  <svg {...base} {...p}>
+    <rect x="3.5" y="5" width="17" height="14" rx="2.4" />
+    <circle cx="9" cy="10.2" r="1.6" />
+    <path d="M4.2 17.4l4.6-4.2 3.1 2.8 3.4-3.4 4.4 4.4" />
+  </svg>
+);
+
+/** Per-conversation settings (title, context window, background). */
+export const IconSliders = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M4 7h9M17 7h3M4 17h3M11 17h9" />
+    <circle cx="15" cy="7" r="2.1" />
+    <circle cx="9" cy="17" r="2.1" />
+  </svg>
+);
+
 /** Download to this device. */
 export const IconDownload = (p: P) => (
   <svg {...base} {...p}>

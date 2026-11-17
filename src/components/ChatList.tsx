@@ -13,6 +13,8 @@ interface ChatListProps {
   onRequestDelete: (chat: Chat) => void;
   onOpenSettings: () => void;
   onOpenCards: () => void;
+  /** A newer release was found and the settings have not been opened since. */
+  updateReady?: boolean;
 }
 
 function lastPreview(chat: Chat): string {
@@ -34,6 +36,7 @@ export function ChatList({
   onRequestDelete,
   onOpenSettings,
   onOpenCards,
+  updateReady,
 }: ChatListProps) {
   const [query, setQuery] = useState('');
   const sorted = useMemo(() => [...chats].sort((a, b) => b.updatedAt - a.updatedAt), [chats]);
@@ -58,6 +61,7 @@ export function ChatList({
         </div>
         <button className="icon-btn" onClick={onOpenSettings} title="设置" aria-label="设置">
           <IconSettings />
+          {updateReady && <span className="update-dot" title="有新版本可用" />}
         </button>
       </div>
 
@@ -102,7 +106,7 @@ export function ChatList({
                 <Avatar src={character?.avatar} name={character?.name ?? chat.title} size={42} />
                 <div className="chat-item-main">
                   <div className="chat-item-top">
-                    <span className="chat-item-name">{character?.name ?? chat.title}</span>
+                    <span className="chat-item-name">{chat.title}</span>
                     <span className="chat-item-time">{formatTime(chat.updatedAt)}</span>
                   </div>
                   <div className="chat-item-bottom">

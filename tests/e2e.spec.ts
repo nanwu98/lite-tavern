@@ -32,13 +32,23 @@ async function importCard(page: Page, file = CARD) {
   await expect(page.locator('.bubble-assistant').first()).toContainText('今晚的钟');
 }
 
+/** Opens the custom model picker, searches and confirms a model id. */
+async function chooseModel(page: Page, model: string) {
+  await page.locator('#model').click();
+  const search = page.locator('.model-picker-search input');
+  await expect(search).toBeVisible();
+  await search.fill(model);
+  await search.press('Enter');
+  await expect(page.locator('#model')).toContainText(model);
+}
+
 async function configureApi(page: Page, baseUrl = 'http://127.0.0.1:8787/v1') {
   await dismissToasts(page);
   await page.locator('.chat-actions button[title="设置"]').click();
   await expect(page.locator('#api-key')).toBeVisible();
   await page.fill('#api-key', 'sk-test-key');
   await page.fill('#base-url', baseUrl);
-  await page.fill('#model', 'deepseek-flash');
+  await chooseModel(page, 'deepseek-flash');
   await page.getByRole('button', { name: '保存设置' }).click();
   await expect(page.locator('.settings-scroll')).toHaveCount(0);
 }
@@ -74,7 +84,7 @@ test.describe('desktop', () => {
     await page.locator('.brand .icon-btn').click();
     await page.fill('#api-key', 'sk-test-key-123');
     await page.fill('#base-url', 'http://127.0.0.1:8787/v1');
-    await page.fill('#model', 'deepseek-flash');
+    await chooseModel(page, 'deepseek-flash');
     await page.getByRole('button', { name: '测试连接' }).click();
     await expect(page.locator('.test-result')).toContainText('连接成功');
     await expect(page.locator('#api-key')).toHaveValue('sk-test-key-123');
@@ -95,15 +105,16 @@ test.describe('desktop', () => {
     await expect(page.locator('#base-url')).toHaveValue(
       'https://dashscope.aliyuncs.com/compatible-mode/v1',
     );
-    await expect(page.locator('#model')).toHaveValue('qwen-plus');
+    await expect(page.locator('#model')).toContainText('qwen4-max');
     await page.locator('#api-key').fill('sk-qwen');
-    await page.locator('#model').click(); // blur the key so it is remembered
+    await page.locator('#base-url').click(); // blur the key so it is remembered
 
     await page.selectOption('#provider', 'deepseek');
     await expect(page.locator('#base-url')).toHaveValue('https://api.deepseek.com');
+    await expect(page.locator('#model')).toContainText('deepseek-flash');
     await expect(page.locator('#api-key')).toHaveValue('');
     await page.locator('#api-key').fill('sk-deepseek');
-    await page.locator('#model').click();
+    await page.locator('#base-url').click();
 
     await page.selectOption('#provider', 'qwen');
     await expect(page.locator('#api-key')).toHaveValue('sk-qwen');
@@ -115,6 +126,32 @@ test.describe('desktop', () => {
     await expect(page.locator('#base-url')).toHaveValue('https://api.deepseek.com');
 
     await page.getByRole('button', { name: '保存设置' }).click();
+  });
+
+  test('picks a model from the custom dropdown and fetches the live list', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('.brand-title')).toBeVisible();
+    await page.locator('.brand .icon-btn').click();
+    await expect(page.locator('#api-key')).toBeVisible();
+    await page.fill('#api-key', 'sk-test-key');
+    await page.fill('#base-url', 'http://127.0.0.1:8787/v1');
+
+    // The panel is our own, so it can be styled and survive inside the modal.
+    await page.locator('#model').click();
+    await expect(page.locator('.model-picker-panel')).toBeVisible();
+    await page.locator('.model-picker-search input').fill('v4-pro');
+    await expect(page.locator('.model-option:not(.custom)')).toHaveCount(1);
+    await page.locator('.model-option:not(.custom)').first().click();
+    await expect(page.locator('.model-picker-panel')).toHaveCount(0);
+    await expect(page.locator('#model')).toContainText('deepseek-v4-pro');
+
+    // 获取最新模型 hits GET {baseUrl}/models (the mock answers with two ids).
+    await page.getByRole('button', { name: '获取最新模型' }).click();
+    await expect(page.locator('.settings-section').first()).toContainText('已获取 2 个模型');
+    await page.locator('#model').click();
+    await expect(page.locator('.model-option:not(.custom)')).toHaveCount(2);
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.model-picker-panel')).toHaveCount(0);
   });
 
   test('imports a card, auto-mounts its world book, chats and persists', async ({ page }) => {
@@ -262,6 +299,111 @@ test.describe('desktop', () => {
     await page.reload();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
     await expect(page.locator('.character-card')).toContainText('临渊');
+  });
+
+  test('shows the card-name validation above the modal instead of behind it', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('.brand-title')).toBeVisible();
+    await page.locator('.rail-head-actions').getByRole('button', { name: '新建' }).click();
+    await expect(page.locator('#card-name')).toBeVisible();
+
+    await page.getByRole('button', { name: '创建角色卡' }).click();
+    const banner = page.locator('.form-error');
+    await expect(banner).toBeVisible();
+    await expect(banner).toContainText('请填写角色名');
+    await expect(page.locator('#card-name')).toBeFocused();
+
+    // The banner must actually be the topmost element at its own centre: the
+    // regression was that the modal backdrop painted over the toast.
+    const onTop = await page.evaluate(() => {
+      const el = document.querySelector('.form-error');
+      if (!el) return false;
+      const rect = el.getBoundingClientRect();
+      const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+      return Boolean(hit && el.contains(hit));
+    });
+    expect(onTop).toBe(true);
+    await page.screenshot({ path: path.join(SHOTS, 'desktop-card-validation.png') });
+
+    // Filling the name clears the banner and the card is created.
+    await page.locator('#card-name').fill('临渊');
+    await page.locator('#card-prompt').fill('你是临渊，雾港的守夜人。');
+    await page.getByRole('button', { name: '创建角色卡' }).click();
+    await expect(page.locator('.chat-name-row h2')).toHaveText('临渊');
+  });
+
+  test('gives each chat its own title, context window and background', async ({ page }) => {
+    await importCard(page);
+    await page.getByLabel('对话设置').click();
+    await expect(page.locator('#chat-title')).toBeVisible();
+    await page.locator('#chat-title').fill('雨夜钟楼');
+    await page.locator('#chat-limit').fill('262144');
+    await page.locator('.chat-settings-modal input[type="file"]').setInputFiles(PNG);
+    await expect(page.locator('.chat-bg-picker img')).toBeVisible();
+    await page.getByRole('button', { name: '保存' }).click();
+
+    await expect(page.locator('.chat-name-row h2')).toHaveText('测试角色·阿绫');
+    await expect(page.locator('.chat-list-panel')).toContainText('雨夜钟楼');
+    await expect(page.locator('.chat-name-title')).toHaveText('雨夜钟楼');
+    const bg = page.locator('.chat-bg');
+    await expect(bg).toBeVisible();
+    const backgroundImage = await bg.evaluate((el) => getComputedStyle(el).backgroundImage);
+    expect(backgroundImage).toContain('data:image');
+
+    // The chat's own window drives the usage meter.
+    await expect(page.locator('.ctx-chip')).toHaveAttribute('title', /256K/);
+
+    // Night mode adds a veil, light mode does not.
+    const veil = async (theme: 'dark' | 'light') =>
+      page.evaluate((next) => {
+        document.documentElement.dataset.theme = next;
+        const el = document.querySelector('.chat-bg');
+        if (!el) return '';
+        const style = getComputedStyle(el, '::after');
+        return `${style.content}|${style.backgroundColor}`;
+      }, theme);
+    expect(await veil('dark')).toMatch(/rgba?\([^)]*0\.\d/);
+    expect(await veil('light')).toContain('none');
+    await page.evaluate(() => {
+      document.documentElement.dataset.theme = 'dark';
+    });
+    await page.screenshot({ path: path.join(SHOTS, 'desktop-chat-background.png') });
+
+    // Everything survives a reload.
+    await page.reload();
+    await expect(page.locator('.chat-name-row h2')).toHaveText('测试角色·阿绫');
+    await expect(page.locator('.chat-name-title')).toHaveText('雨夜钟楼');
+    await expect(page.locator('.chat-bg')).toBeVisible();
+  });
+
+  test('silently checks for updates on launch and shows the notes behind a red dot', async ({
+    page,
+  }) => {
+    await page.route('https://github.com/**', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          version: '9.9.9',
+          notes: '## 9.9.9\n\n- 这是测试用的更新说明',
+          publishedAt: '2026-11-17T00:00:00.000Z',
+          windows: { file: 'LiteTavern-9.9.9-win-x64.exe', size: 1024, sha256: 'a'.repeat(64) },
+        }),
+      }),
+    );
+
+    await page.goto('/');
+    await expect(page.locator('.brand-title')).toBeVisible();
+    await expect(page.locator('.update-dot').first()).toBeVisible({ timeout: 30_000 });
+
+    await page.locator('.brand .icon-btn').click();
+    await expect(page.locator('.update-card')).toContainText('9.9.9');
+    await expect(page.locator('.update-notes')).toContainText('这是测试用的更新说明');
+    await page.screenshot({ path: path.join(SHOTS, 'desktop-update-dot.png') });
+    await expect(page.locator('.update-dot')).toHaveCount(0);
+
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.update-dot')).toHaveCount(0);
   });
 
   test('shows every card on the start screen and deletes one after a second confirmation', async ({

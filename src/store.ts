@@ -44,6 +44,18 @@ export interface ImportBookInput {
   fileName?: string;
 }
 
+/** Result of the silent update check that runs when the app opens. */
+export interface UpdateSummary {
+  status: 'available' | 'up-to-date' | 'error';
+  current: string;
+  latest?: string;
+  notes?: string;
+  publishedAt?: string;
+  asset?: { file: string; size: number; sha256: string };
+  error?: string;
+  checkedAt: number;
+}
+
 interface AppState {
   characters: Character[];
   chats: Chat[];
@@ -54,6 +66,15 @@ interface AppState {
   busyChatId: string | null;
   streamingMessageId: string | null;
   toasts: Toast[];
+  /** Latest background update check, shown in 设置 → 关于与更新 without re-checking. */
+  updateInfo: UpdateSummary | null;
+  updateChecking: boolean;
+  /** Newest version the user already opened the settings for (silences the red dot). */
+  updateSeenVersion: string | null;
+
+  setUpdateInfo: (info: UpdateSummary | null) => void;
+  setUpdateChecking: (checking: boolean) => void;
+  markUpdateSeen: (version: string) => void;
 
   setHydrated: (v: boolean) => void;
   toast: (message: string, type?: Toast['type']) => void;
@@ -74,6 +95,11 @@ interface AppState {
   createChat: (characterId: string, greetingIndex?: number) => Chat | null;
   openCharacter: (characterId: string) => void;
   selectChat: (chatId: string | null) => void;
+  /** Renames a chat or changes its per-chat settings / background. */
+  updateChat: (
+    chatId: string,
+    patch: Partial<Pick<Chat, 'title' | 'overrides' | 'background'>>,
+  ) => void;
   deleteChat: (chatId: string) => void;
   beginExchange: (chatId: string, text: string) => { assistantId: string } | null;
   beginAssistant: (chatId: string) => string | null;
@@ -266,6 +292,16 @@ export const useStore = create<AppState>()(
       busyChatId: null,
       streamingMessageId: null,
       toasts: [],
+      updateInfo: null,
+      updateChecking: false,
+      updateSeenVersion: null,
+
+      setUpdateInfo: (info) => set({ updateInfo: info }),
+      setUpdateChecking: (checking) => set({ updateChecking: checking }),
+      markUpdateSeen: (version) => {
+        set({ updateSeenVersion: version });
+        flushPersist();
+      },
 
       setHydrated: (v) => set({ hydrated: v }),
 
@@ -540,6 +576,15 @@ export const useStore = create<AppState>()(
       },
 
       selectChat: (chatId) => set({ activeChatId: chatId }),
+
+      updateChat: (chatId, patch) => {
+        set((state) => ({
+          // Renaming or restyling edits metadata only: `updatedAt` is left alone
+          // so the conversation list keeps its order by real activity.
+          chats: state.chats.map((c) => (c.id === chatId ? { ...c, ...patch } : c)),
+        }));
+        flushPersist();
+      },
 
       deleteChat: (chatId) => {
         const state = getState();
@@ -851,6 +896,7 @@ export const useStore = create<AppState>()(
         worldBooks: state.worldBooks,
         settings: state.settings,
         activeChatId: state.activeChatId,
+        updateSeenVersion: state.updateSeenVersion,
       }),
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<AppState>;

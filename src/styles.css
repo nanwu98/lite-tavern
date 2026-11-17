@@ -1,4 +1,4 @@
-:root {
+﻿:root {
   --bg: #0d0b11;
   --bg-soft: #13101a;
   --panel: rgba(28, 24, 36, 0.82);
@@ -1858,7 +1858,9 @@ a:hover {
   position: fixed;
   top: 16px;
   right: 16px;
-  z-index: 300;
+  /* Above the modals (100) and the script popups (6000): a validation error must
+     be visible while a modal is open. */
+  z-index: 7000;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -2513,7 +2515,7 @@ a:hover {
   line-height: 1.6;
 }
 
-/* Message variants (酒馆 swipe) + inline editor */
+/* Message variants (閰掗 swipe) + inline editor */
 .swipe-controls {
   display: inline-flex;
   align-items: center;
@@ -3922,7 +3924,7 @@ button:focus-visible {
   }
 }
 
-/* Settings → About & updates */
+/* Settings 鈫?About & updates */
 .update-row {
   display: flex;
   align-items: center;
@@ -3991,7 +3993,7 @@ button:focus-visible {
 /* ---------- Android edge-to-edge ----------
    The Android shell draws the page behind the status and navigation bars and
    publishes their sizes as --safe-* (see src/lib/systemBars.ts). Padding the
-   shell — not the window — keeps the aurora background under the bars, so the
+   shell 鈥?not the window 鈥?keeps the aurora background under the bars, so the
    app colour reaches the screen edges instead of leaving a black strip. On
    desktop and in a browser the variables are unset and this is a no-op. */
 .app {
@@ -4004,4 +4006,437 @@ button:focus-visible {
   padding-bottom: var(--safe-bottom, 0px);
   padding-left: var(--safe-left, 0px);
   padding-right: var(--safe-right, 0px);
+}
+
+/* ==========================================================================
+   1.6.4 additions: model picker, inline form errors, chat background
+   ========================================================================== */
+
+.icon-btn {
+  position: relative;
+}
+
+/* Red dot that points at the settings button when a release is available. */
+.update-dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #e8615c;
+  box-shadow:
+    0 0 0 2px var(--panel),
+    0 0 8px rgba(232, 97, 92, 0.75);
+  animation: update-dot-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes update-dot-pulse {
+  50% {
+    opacity: 0.55;
+    transform: scale(0.86);
+  }
+}
+
+/* ---------- model picker ---------- */
+.model-picker-trigger {
+  width: 100%;
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--tint-weak);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.16s ease,
+    background 0.16s ease;
+}
+
+.model-picker-trigger:hover {
+  border-color: rgba(242, 198, 143, 0.34);
+  background: var(--tint);
+}
+
+.model-picker-trigger.open {
+  border-color: rgba(242, 198, 143, 0.55);
+  background: var(--tint);
+}
+
+.model-picker-trigger.empty .model-picker-value {
+  color: var(--muted-2);
+}
+
+.model-picker-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.model-picker-hint {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.model-picker-chevron {
+  flex: 0 0 auto;
+  color: var(--muted-2);
+  font-size: 12px;
+  line-height: 1;
+  transition: transform 0.16s ease;
+}
+
+.model-picker-trigger.open .model-picker-chevron {
+  transform: rotate(180deg);
+}
+
+.model-picker-panel {
+  position: fixed;
+  z-index: 4000;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--panel-2);
+  -webkit-backdrop-filter: blur(26px) saturate(150%);
+  backdrop-filter: blur(26px) saturate(150%);
+  box-shadow: 0 26px 60px -24px rgba(0, 0, 0, 0.9);
+  animation: toast-in 0.14s ease-out;
+}
+
+.model-picker-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  margin-bottom: 4px;
+  border: 1px solid var(--line-soft);
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.22);
+  color: var(--muted-2);
+}
+
+.model-picker-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  outline: none;
+}
+
+.model-picker-search input::placeholder {
+  color: var(--muted-2);
+}
+
+.model-picker-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.model-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: none;
+  color: var(--text-soft);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.model-option.active {
+  background: var(--tint);
+  border-color: var(--line-soft);
+}
+
+.model-option.selected {
+  color: var(--text);
+  border-color: rgba(242, 198, 143, 0.28);
+  background: var(--accent-soft);
+}
+
+.model-option.custom {
+  border-style: dashed;
+  border-color: var(--line);
+}
+
+.model-option-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.model-option-id {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.model-option-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted-2);
+  font-size: 10.5px;
+}
+
+.model-picker-empty {
+  padding: 12px 10px;
+  color: var(--muted-2);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
+.model-picker-foot {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 5px;
+  padding: 5px 8px 2px;
+  border-top: 1px solid var(--line-soft);
+  color: var(--muted-2);
+  font-size: 10.5px;
+}
+
+/* ---------- inline form errors ---------- */
+.form-error {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 10px;
+  padding: 8px 11px;
+  border: 1px solid rgba(231, 141, 136, 0.4);
+  border-radius: 10px;
+  background: var(--danger-soft);
+  color: var(--error-text);
+  font-size: 12px;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+.form-error svg {
+  flex: 0 0 auto;
+  color: var(--danger);
+}
+
+.form-hint-warn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--tag-warn);
+}
+
+.field input[aria-invalid='true'] {
+  border-color: rgba(231, 141, 136, 0.6);
+}
+
+/* ---------- per-chat settings ---------- */
+.chat-settings-modal .modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.chat-limit-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chat-limit-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.chat-bg-picker {
+  position: relative;
+  height: 132px;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--tint-weak);
+}
+
+.chat-bg-picker.has-image {
+  border-style: solid;
+}
+
+.chat-bg-picker img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.chat-bg-empty {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--muted-2);
+  font-size: 11.5px;
+}
+
+.chat-bg-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-danger-ghost {
+  color: var(--danger);
+  border-color: rgba(231, 141, 136, 0.32);
+}
+
+/* Chat background layer: -1 keeps it behind every child of the stacking
+   context that `.chat-view` creates, without touching the children's own
+   z-index values. */
+.chat-bg {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  pointer-events: none;
+}
+
+/* Night mode gets a very light veil so text over a bright photo still reads. */
+[data-theme='dark'] .chat-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 6, 10, 0.26);
+}
+
+[data-theme='light'] .chat-bg::after {
+  content: none;
+}
+
+.chat-name-title {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 42%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 10.5px;
+  padding: 1px 7px;
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+}
+
+@media (max-width: 760px) {
+  .model-picker-panel {
+    z-index: 4000;
+  }
+
+  .model-picker-hint {
+    display: none;
+  }
+
+  .chat-bg-picker {
+    height: 108px;
+  }
+}
+
+/* Conversation title chip next to the character name in the chat header. */
+.chat-name-title {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 42%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 10.5px;
+  padding: 1px 7px;
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+}
+
+/* Release notes are markdown now: keep the compact, muted look of the card. */
+.update-notes.markdown {
+  white-space: normal;
+  font-size: 12.5px;
+  color: var(--text-soft);
+}
+
+.update-notes.markdown h1,
+.update-notes.markdown h2,
+.update-notes.markdown h3,
+.update-notes.markdown h4 {
+  margin: 10px 0 4px;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--text);
+  letter-spacing: 0.01em;
+}
+
+.update-notes.markdown h1:first-child,
+.update-notes.markdown h2:first-child,
+.update-notes.markdown h3:first-child {
+  margin-top: 0;
+}
+
+.update-notes.markdown ul {
+  margin: 2px 0 8px;
+  padding-left: 18px;
+}
+
+.update-notes.markdown li {
+  margin: 2px 0;
+}
+
+.update-notes.markdown p {
+  margin: 4px 0;
+}
+/* Two actions on one line under the model fields: 娴嬭瘯杩炴帴 + 鑾峰彇鏈€鏂版ā鍨? */
+.test-row {
+  row-gap: 8px;
+}
+
+.test-row .btn {
+  flex: 0 0 auto;
 }

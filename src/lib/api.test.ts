@@ -4,8 +4,13 @@ import {
   chatEndpoint,
   contextErrorMessage,
   detectContextOverflow,
+  looksLikeChatModel,
+  modelListUrls,
+  modelsEndpoint,
   normalizeBaseUrl,
+  parseModelList,
 } from './api';
+import { DEFAULT_SETTINGS } from '../defaults';
 
 describe('context overflow detection', () => {
   it('recognises the provider wording and extracts the window size', () => {
@@ -57,5 +62,56 @@ describe('endpoint helpers', () => {
   it('rejects an empty base URL instead of silently calling one vendor', () => {
     expect(() => normalizeBaseUrl('')).toThrow(/Base URL/);
     expect(() => chatEndpoint('  ')).toThrow(/Base URL/);
+  });
+
+  it('builds the model-list endpoint from the chat endpoint', () => {
+    expect(modelsEndpoint('https://api.deepseek.com')).toBe('https://api.deepseek.com/models');
+    expect(modelsEndpoint('https://api.example.com/v1/chat/completions')).toBe(
+      'https://api.example.com/v1/models',
+    );
+  });
+});
+
+describe('model list parsing', () => {
+  it('reads the OpenAI shape, string arrays and bare arrays', () => {
+    expect(parseModelList({ object: 'list', data: [{ id: 'a' }, { id: 'b' }] })).toEqual([
+      'a',
+      'b',
+    ]);
+    expect(parseModelList({ models: ['x', 'y'] })).toEqual(['x', 'y']);
+    expect(parseModelList(['p', { id: 'q' }])).toEqual(['p', 'q']);
+    expect(parseModelList(null)).toEqual([]);
+    expect(parseModelList({ data: [{ name: 'n' }, { model: 'm' }] })).toEqual(['n', 'm']);
+  });
+
+  it('deduplicates and trims ids', () => {
+    expect(parseModelList({ data: [{ id: ' a ' }, { id: 'a' }] })).toEqual(['a']);
+  });
+
+  it('drops embeddings, rerankers and image models', () => {
+    const ids = [
+      'qwen-plus',
+      'text-embedding-v3',
+      'BAAI/bge-m3',
+      'bge-reranker-v2',
+      'flux-schnell',
+      'whisper-1',
+      'doubao-seed-1-6',
+    ];
+    expect(ids.filter(looksLikeChatModel)).toEqual(['qwen-plus', 'doubao-seed-1-6']);
+  });
+
+  it('offers the conventional endpoint first and the preset fallback after it', () => {
+    const deepseek = modelListUrls({ ...DEFAULT_SETTINGS, provider: 'deepseek' });
+    expect(deepseek).toEqual(['https://api.deepseek.com/models']);
+
+    // Bailian documents its list under /api/v1/models, not under compatible-mode.
+    const qwen = modelListUrls({
+      ...DEFAULT_SETTINGS,
+      provider: 'qwen',
+      baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    });
+    expect(qwen[0]).toBe('https://dashscope.aliyuncs.com/compatible-mode/v1/models');
+    expect(qwen).toContain('https://dashscope.aliyuncs.com/api/v1/models');
   });
 });

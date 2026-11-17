@@ -1,4 +1,5 @@
 import type { Settings } from '../types';
+import { getProvider } from './providers';
 
 export interface ApiMessage {
   role: 'system' | 'user' | 'assistant';
@@ -284,43 +285,154 @@ export interface ConnectionResult {
   models?: string[];
 }
 
+/**
+ * Model ids that are clearly not chat models. Aggregators such as SiliconFlow
+ * list hundreds of entries, including embeddings and image models that would
+ * only clutter a chat picker.
+ */
+const NON_CHAT_PATTERN =
+  /(embedding|embed|rerank|bge-|gte-|m3e|whisper|tts|asr|speech|audio|voice|image|imagen|dall-?e|stable-?diffusion|sdxl|flux|kolors|upscal|moderation|video|veo|kling|seedance|wan2|hunyuanvideo)/i;
+
+export function looksLikeChatModel(id: string): boolean {
+  return Boolean(id) && !NON_CHAT_PATTERN.test(id);
+}
+
+/** Reads the id list out of any of the shapes OpenAI-compatible servers return. */
+export function parseModelList(json: unknown): string[] {
+  const pick = (value: unknown): string[] => {
+    if (Array.isArray(value)) {
+      return value
+        .map((item) => {
+          if (typeof item === 'string') return item.trim();
+          if (item && typeof item === 'object') {
+            const record = item as Record<string, unknown>;
+            const id = record.id ?? record.model ?? record.name;
+            return typeof id === 'string' ? id.trim() : '';
+          }
+          return '';
+        })
+        .filter(Boolean);
+    }
+    return [];
+  };
+  if (Array.isArray(json)) return [...new Set(pick(json))];
+  if (!json || typeof json !== 'object') return [];
+  const record = json as Record<string, unknown>;
+  const list = [...new Set([...pick(record.data), ...pick(record.models)])];
+  return list;
+}
+
+export interface ModelListResult {
+  models: string[];
+  /** The server answered but has no model-list endpoint (404/405). */
+  missing: boolean;
+}
+
+/**
+ * Every URL worth asking for a model list, in order.
+ *
+ * `{baseUrl}/models` is the OpenAI convention and works for most providers; a
+ * preset may declare an extra official endpoint (Bailian publishes its list
+ * under `/api/v1/models` rather than under `compatible-mode`). Custom gateways
+ * get only the conventional one and fall back to the preset list.
+ */
+export function modelListUrls(settings: Settings): string[] {
+  const urls: string[] = [];
+  try {
+    urls.push(modelsEndpoint(settings.baseUrl));
+  } catch {
+    // No usable Base URL yet; a preset URL below may still work.
+  }
+  for (const url of getProvider(settings.provider).modelsUrls ?? []) urls.push(url);
+  return [...new Set(urls)];
+}
+
+/**
+ * Fetches the provider's model list. Tries each candidate URL in order and
+ * returns `missing: true` only when every one of them answers 404/405, so the
+ * caller can fall back to the preset list instead of showing an error.
+ */
+export async function listModels(
+  settings: Settings,
+  options: { signal?: AbortSignal; timeoutMs?: number } = {},
+): Promise<ModelListResult> {
+  if (!settings.apiKey.trim()) {
+    throw new ApiError('请先填写 API Key，获取模型列表需要鉴权。');
+  }
+  const urls = modelListUrls(settings);
+  if (!urls.length) throw new ApiError('请先填写 Base URL。');
+  let lastError: ApiError | undefined;
+  let sawMissing = false;
+
+  for (const url of urls) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? 20_000);
+    const onExternalAbort = () => controller.abort();
+    options.signal?.addEventListener('abort', onExternalAbort, { once: true });
+    try {
+      const res = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${settings.apiKey.trim()}`,
+          Accept: 'application/json',
+        },
+        signal: controller.signal,
+      });
+      if (res.status === 404 || res.status === 405) {
+        sawMissing = true;
+        continue;
+      }
+      if (!res.ok) {
+        // A wrong path may answer 401/403 on some gateways; keep the error and
+        // try the next candidate, but remember the first real failure.
+        lastError ??= await readError(res);
+        continue;
+      }
+      let json: unknown = null;
+      try {
+        json = await res.json();
+      } catch {
+        sawMissing = true;
+        continue;
+      }
+      const models = parseModelList(json).filter(looksLikeChatModel);
+      if (models.length) return { models, missing: false };
+      sawMissing = true;
+    } catch (error) {
+      if (options.signal?.aborted) throw error;
+      if (error instanceof Error && error.name === 'AbortError') {
+        lastError ??= new ApiError('获取模型列表超时，请检查网络或 Base URL。');
+      } else {
+        lastError ??= new ApiError(
+          `获取模型列表失败：${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    } finally {
+      clearTimeout(timer);
+      options.signal?.removeEventListener('abort', onExternalAbort);
+    }
+  }
+
+  if (lastError) throw lastError;
+  return { models: [], missing: sawMissing };
+}
+
 export async function testConnection(settings: Settings): Promise<ConnectionResult> {
   if (!settings.apiKey.trim()) return { ok: false, message: '请先填写 API Key。' };
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 20_000);
   try {
-    const res = await fetch(modelsEndpoint(settings.baseUrl), {
-      headers: { Authorization: `Bearer ${settings.apiKey.trim()}` },
-      signal: controller.signal,
-    });
-    if (!res.ok) {
-      if (res.status === 404) {
-        return { ok: true, message: '接口地址可访问（服务未提供 /models，可直接尝试聊天）。' };
-      }
-      const err = await readError(res);
-      return { ok: false, message: err.message };
+    const { models, missing } = await listModels(settings);
+    if (missing) {
+      return { ok: true, message: '接口地址可访问（服务未提供 /models，可直接尝试聊天）。' };
     }
-    const json = (await res.json()) as Record<string, unknown>;
-    const data = Array.isArray(json.data) ? json.data : [];
-    const models = data
-      .map((item) =>
-        item && typeof item === 'object' ? String((item as Record<string, unknown>).id ?? '') : '',
-      )
-      .filter(Boolean);
     return {
       ok: true,
       message: models.length ? `连接成功，可用模型：${models.join('、')}` : '连接成功。',
       models,
     };
   } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') {
-      return { ok: false, message: '连接超时，请检查网络或 Base URL。' };
-    }
+    const message = error instanceof Error ? error.message : String(error);
     return {
       ok: false,
-      message: `连接失败：${error instanceof Error ? error.message : String(error)}`,
+      message: message.includes('超时') ? '连接超时，请检查网络或 Base URL。' : message,
     };
-  } finally {
-    clearTimeout(timer);
   }
 }

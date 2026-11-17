@@ -4,6 +4,7 @@ import { useStore, messageVariants, activeSwipeIndex } from '../store';
 import { useChat } from '../hooks/useChat';
 import { Avatar } from './Avatar';
 import { Modal } from './Modal';
+import { ChatSettingsModal } from './ChatSettingsModal';
 import {
   IconBook,
   IconCheck,
@@ -15,6 +16,7 @@ import {
   IconRefresh,
   IconSend,
   IconSettings,
+  IconSliders,
   IconStop,
   IconTrash,
 } from './Icons';
@@ -22,6 +24,7 @@ import { copyText } from '../lib/format';
 import { formatTime } from '../lib/util';
 import { formatLimit, formatTokenCount } from '../lib/tokens';
 import { contextUsage, AUTO_COMPACT_RATIO } from '../lib/compact';
+import { settingsForChat } from '../lib/chatSettings';
 import { MessageContent } from './MessageContent';
 import { ScriptButtonBar, ScriptHost } from './ScriptHost';
 import { displayText } from '../lib/tavern/display';
@@ -38,6 +41,8 @@ interface ChatViewProps {
   onOpenSettings: () => void;
   onNewChat: () => void;
   onDeleteChat: () => void;
+  /** A newer release was found and the settings have not been opened since. */
+  updateReady?: boolean;
 }
 
 function AssistantAvatar({ character, size = 34 }: { character: Character; size?: number }) {
@@ -331,10 +336,12 @@ export function ChatView({
   onOpenSettings,
   onNewChat,
   onDeleteChat,
+  updateReady,
 }: ChatViewProps) {
   const [input, setInput] = useState('');
   const [loreTitles, setLoreTitles] = useState<string[] | null>(null);
   const [contextOpen, setContextOpen] = useState(false);
+  const [chatSettingsOpen, setChatSettingsOpen] = useState(false);
   const [confirmClearMemory, setConfirmClearMemory] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const stickRef = useRef(true);
@@ -360,7 +367,7 @@ export function ChatView({
   const setCompaction = useStore((s) => s.setCompaction);
 
   const usage = useMemo(
-    () => contextUsage(character, books, chat, settings),
+    () => contextUsage(character, books, chat, settingsForChat(settings, chat)),
     [character, books, chat, settings],
   );
   const usagePercent = Math.min(999, Math.round(usage.ratio * 100));
@@ -442,7 +449,14 @@ export function ChatView({
   const lastAssistant = [...chat.messages].reverse().find((m) => m.role === 'assistant');
 
   return (
-    <main className="chat-view">
+    <main className={`chat-view ${chat.background ? 'has-bg' : ''}`}>
+      {chat.background && (
+        <div
+          className="chat-bg"
+          style={{ backgroundImage: `url("${chat.background}")` }}
+          aria-hidden="true"
+        />
+      )}
       {hasScripts && <ScriptHost character={character} chatId={chat.id} />}
       <header className="chat-head">
         <button className="icon-btn mobile-only" onClick={onOpenChats} aria-label="对话列表">
@@ -452,6 +466,13 @@ export function ChatView({
         <div className="chat-title">
           <div className="chat-name-row">
             <h2>{character.name}</h2>
+            {/* The conversation title is what the list shows; the header keeps
+                the character's identity and only adds the title when it differs. */}
+            {chat.title !== character.name && (
+              <span className="chat-name-title" title="对话标题">
+                {chat.title}
+              </span>
+            )}
             {books.length > 0 && (
               <span className="badge">
                 <IconBook width={12} height={12} />{' '}
@@ -478,8 +499,17 @@ export function ChatView({
           <button className="icon-btn" onClick={onNewChat} title="新对话">
             <IconPlus />
           </button>
+          <button
+            className="icon-btn"
+            onClick={() => setChatSettingsOpen(true)}
+            title="对话设置（标题、上下文、背景图）"
+            aria-label="对话设置"
+          >
+            <IconSliders />
+          </button>
           <button className="icon-btn" onClick={onOpenSettings} title="设置">
             <IconSettings />
+            {updateReady && <span className="update-dot" title="有新版本可用" />}
           </button>
           <button className="icon-btn mobile-only" onClick={onOpenCards} title="角色卡">
             <IconBook />
@@ -565,12 +595,20 @@ export function ChatView({
         {input.length > 1800 && <div className="composer-count">{input.length} 字</div>}
       </footer>
 
+      <ChatSettingsModal
+        open={chatSettingsOpen}
+        chat={chat}
+        characterName={character.name}
+        onClose={() => setChatSettingsOpen(false)}
+      />
+
       <Modal
         open={Boolean(loreTitles)}
         title="本轮触发的世界书"
         subtitle="这些词条已注入本轮对话"
         onClose={() => setLoreTitles(null)}
       >
+        {' '}
         <div className="lore-list">
           {loreTitles?.map((title, i) => (
             <div className="lore-item" key={`${title}-${i}`}>

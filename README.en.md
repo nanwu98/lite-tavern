@@ -60,15 +60,23 @@ group chat, no plugin store, no cloud sync — just the story.
   Older WebViews automatically fall back to opaque panels.
 - **Boss key (desktop)**: a configurable global shortcut hides and restores the
   window.
-- **Model providers (1.6.0+)**: pick a provider from a dropdown and the Base URL,
-  suggested models, context window and API-key page are filled in for you; keys
-  are remembered per provider, and "Custom" accepts any OpenAI-compatible
-  endpoint. Streaming, temperature, context length and world-book budget are
-  adjustable.
-- **In-app updates (1.5.0+)**: Settings → About & updates checks the latest
-  release, shows its notes and installer size, verifies the SHA-256 from the
-  release manifest, then swaps the launcher and restarts (Windows) or opens the
-  system package installer (Android, which still asks for confirmation).
+- **Model providers (1.6.0+, picker rebuilt in 1.6.4)**: pick a provider from a
+  dropdown and the Base URL, suggested models, context window and API-key page are
+  filled in for you; keys are remembered per provider, and "Custom" accepts any
+  OpenAI-compatible endpoint. **Fetch latest models** calls the provider's
+  `/models` endpoint and lists what your key can actually use, with a search box;
+  the model id stays editable. Streaming, temperature, context length and
+  world-book budget are adjustable.
+- **Chat settings (1.6.4+)**: every conversation has its own title, context window
+  (follow global / 64K / 128K / 256K / 1M / custom) and background picture
+  (uploaded, downscaled to 1920 px; dark mode adds a very light dark veil, light
+  mode does not).
+- **In-app updates (1.5.0+, silent check on launch since 1.6.4)**: the app checks
+  for a release in the background at startup and lights a small red dot on the
+  settings button when one exists; Settings → About & updates shows the version,
+  its notes and the installer size, verifies the SHA-256 from the release
+  manifest, then swaps the launcher and restarts (Windows) or opens the system
+  package installer (Android, which still asks for confirmation).
 
 ## Screenshots
 
@@ -79,6 +87,10 @@ group chat, no plugin store, no cloud sync — just the story.
 | Start screen          | Backup & restore     | World book editor              |
 | --------------------- | -------------------- | ------------------------------ |
 | ![](docs/welcome.png) | ![](docs/backup.png) | ![](docs/worldbook-editor.png) |
+
+| Chat settings (1.6.4)       |
+| --------------------------- |
+| ![](docs/chat-settings.png) |
 
 <p align="center">
   <img src="docs/mobile.png" width="300" alt="Mobile chat" />
@@ -187,21 +199,30 @@ published and the APK can still be produced locally with `pnpm android:build`.
   <img src="docs/model-service.png" width="680" alt="Model service in Settings" />
 </p>
 
+<p align="center">
+  <img src="docs/model-picker.png" width="680" alt="Model picker (custom combobox since 1.6.4)" />
+</p>
+
 The provider dropdown fills in the Base URL, model suggestions and the page where
 the API key is created. Model ids are suggestions only — the field stays editable,
-and the provider console is the source of truth.
+and the provider console is the source of truth. **Fetch latest models** asks the
+provider (`GET {Base URL}/models`) for what your key can really use and filters
+out embeddings, rerankers and image/audio models.
 
-| Provider                 | Base URL                                            | Example models                                   |
-| ------------------------ | --------------------------------------------------- | ------------------------------------------------ |
-| DeepSeek                 | `https://api.deepseek.com`                          | `deepseek-chat` / `deepseek-reasoner`            |
-| Qwen (Alibaba DashScope) | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-plus` / `qwen-max`                         |
-| Zhipu GLM                | `https://open.bigmodel.cn/api/paas/v4`              | `glm-4.6` / `glm-4-flash`                        |
-| Kimi (Moonshot)          | `https://api.moonshot.cn/v1`                        | `kimi-k2-0905-preview`                           |
-| ERNIE (Baidu Qianfan)    | `https://qianfan.baidubce.com/v2`                   | `ernie-4.5-turbo-128k`                           |
-| Tencent Hunyuan          | `https://api.hunyuan.cloud.tencent.com/v1`          | `hunyuan-turbos-latest`                          |
-| Doubao (Volcengine Ark)  | `https://ark.cn-beijing.volces.com/api/v3`          | `doubao-seed-1-6-250615` (or an `ep-…` endpoint) |
-| SiliconFlow              | `https://api.siliconflow.cn/v1`                     | `deepseek-ai/DeepSeek-V3`                        |
-| Custom                   | any OpenAI-compatible URL                           | per your provider                                |
+| Provider                 | Base URL                                            | Example models                                                          |
+| ------------------------ | --------------------------------------------------- | ----------------------------------------------------------------------- |
+| DeepSeek                 | `https://api.deepseek.com`                          | `deepseek-flash` (V4.1) / `deepseek-v4-pro`                             |
+| Qwen (Alibaba DashScope) | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen4-max` / `qwen3.7-plus` / `qwen3.8-flash` / `qwen-plus-character`  |
+| Zhipu GLM                | `https://open.bigmodel.cn/api/paas/v4`              | `glm-5.3` / `glm-5.3-flash` / `glm-5.3-flashx`                          |
+| Kimi (Moonshot)          | `https://api.moonshot.cn/v1`                        | `kimi-k3.1-pro` / `kimi-k3.1-pro-highspeed` / `kimi-k3`                 |
+| ERNIE (Baidu Qianfan)    | `https://qianfan.baidubce.com/v2`                   | `ernie-5.1` / `ernie-5.0` / `ernie-x1.1`                                |
+| Tencent Hunyuan          | `https://api.hunyuan.cloud.tencent.com/v1`          | `hunyuan-a13b` / `hunyuan-role-latest` / `hunyuan-turbos-latest`        |
+| Doubao (Volcengine Ark)  | `https://ark.cn-beijing.volces.com/api/v3`          | `doubao-seed-evolving` / `doubao-seed-2-1-pro-260915` (or an `ep-…`)    |
+| SiliconFlow              | `https://api.siliconflow.cn/v1`                     | `deepseek-ai/DeepSeek-V4-Pro` / `deepseek-ai/DeepSeek-V4.1-Flash`       |
+| Custom                   | any OpenAI-compatible URL                           | per your provider                                                       |
+
+> Model ids move fast: DeepSeek retired `deepseek-chat` / `deepseek-reasoner` on
+> 2026-07-24, and 1.6.4 migrates a saved alias to `deepseek-flash` on launch.
 
 ### Checking for updates
 
@@ -209,9 +230,12 @@ and the provider console is the source of truth.
   <img src="docs/update.png" width="680" alt="About &amp; updates in Settings" />
 </p>
 
-- Settings → About & updates → **Check for updates**. The version manifest is
-  `version.json`, published as a release asset next to the installers and read
-  through `releases/latest/download/...`, so it costs no GitHub API quota.
+- The app checks for a new version silently on launch and lights a red dot on the
+  settings button when one exists; the release notes are then already shown under
+  About & updates, so there is no need to press "Check for updates" first.
+- The version manifest is `version.json`, published as a release asset next to the
+  installers and read through `releases/latest/download/...`, so it costs no
+  GitHub API quota.
 - If `github.com` is unreachable the request falls back to the `ghfast.top` and
   `ghproxy.net` mirrors; every download is checked against the SHA-256 in the
   manifest, and a mirror that rewrites the binary gets discarded.
@@ -253,6 +277,18 @@ and the provider console is the source of truth.
   renders a **compact and continue** button on the failed message; it runs the
   same summarizer and retries the turn.
 
+### Chat settings
+
+- The sliders icon in the chat header opens per-conversation settings.
+- **Title**: shown in the conversation list and the chat header; empty falls back
+  to the character name.
+- **Context window**: follow the global setting, or give this one conversation its
+  own 64K / 128K / 256K / 1M / custom value. The usage percentage and the 80%
+  auto-compaction trigger both use it.
+- **Background**: upload a picture; it is downscaled to 1920 px (JPEG q0.82) and
+  fills the chat area. Dark mode adds a very light dark veil for legibility, light
+  mode adds nothing. It can be removed at any time and travels with backups.
+
 ### Card code
 
 Cards that ship Tavern Helper / JS-Slash-Runner code get a compatibility bridge
@@ -292,6 +328,34 @@ docs/               Screenshots used by the READMEs
 
 Run `pnpm test` and `pnpm test:e2e` before submitting a change; see
 [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Intended use and compliance
+
+**LiteTavern is an open-source, local learning tool — not an online service and not an AI
+product.** These boundaries are also the design premises of the project:
+
+- **A client only: no models, no content.** The project ships no model weights, inference
+  service, cloud endpoint or proxy. Every request is made with your own API key, directly to
+  the provider you choose (or your own gateway). The provider is the service operator; this
+  project is the local UI that reads and writes your cards.
+- **No cards, world books, presets or "jailbreak" prompts, and no card indexing or
+  recommendation.** Everything inside the app is imported or written by the user. There are no
+  bundled sample cards, no download links and no instructions for bypassing a provider's safety
+  policy.
+- **No operation, no hosting, no charging.** No accounts, no cloud sync, no telemetry, no paid
+  tier: cards, world books and chats live only on your own device (local IndexedDB /
+  `UserData`). The project collects, uploads and resells no user data.
+- **Intended for adults, for technical learning and personal creative writing.** Users are
+  responsible for the content they import, generate and share, and must ensure it complies with
+  the laws of their jurisdiction. Do not use this project to create or distribute illegal,
+  infringing or harmful material.
+- **Distributed only as source code and GitHub Releases.** The project does not target app-store
+  distribution and makes no listing or compliance promise for any region; check the legality of
+  your use in your own jurisdiction first.
+
+> Released under the MIT license, provided "as is", without warranty of any kind. The authors
+> and contributors accept no liability for any consequence of using this project. This section
+> describes the project's scope; it is not legal advice.
 
 ## Credits
 

@@ -10,6 +10,8 @@ import {
   type UpdateAsset,
   type UpdateCheck,
 } from '../lib/update';
+import { useStore } from '../store';
+import { renderMarkdown } from '../lib/format';
 import { IconDownload, IconRefresh } from './Icons';
 
 type Phase = 'idle' | 'checking' | 'ready' | 'downloading' | 'installing' | 'restarting' | 'done';
@@ -33,11 +35,30 @@ export function UpdateSection() {
   const desktop = Boolean(window.liteTavern?.isDesktop);
   const android = isAndroidApp();
   const [current, setCurrent] = useState(__APP_VERSION__);
-  const [check, setCheck] = useState<UpdateCheck | null>(null);
+  const [localCheck, setLocalCheck] = useState<UpdateCheck | null>(null);
   const [phase, setPhase] = useState<Phase>('idle');
   const [progress, setProgress] = useState('');
   const [error, setError] = useState('');
   const mounted = useRef(true);
+  const stored = useStore((s) => s.updateInfo);
+  const storedChecking = useStore((s) => s.updateChecking);
+  const setStored = useStore((s) => s.setUpdateInfo);
+
+  // The launch-time check already ran: show its result (and its release notes)
+  // without asking the user to press 检查更新 first.
+  const check: UpdateCheck | null =
+    localCheck ??
+    (stored
+      ? {
+          status: stored.status,
+          current: stored.current,
+          latest: stored.latest,
+          notes: stored.notes,
+          publishedAt: stored.publishedAt,
+          asset: stored.asset,
+          error: stored.error,
+        }
+      : null);
 
   useEffect(() => {
     mounted.current = true;
@@ -64,7 +85,8 @@ export function UpdateSection() {
         ? await window.liteTavern!.checkUpdate()
         : await checkForUpdates(__APP_VERSION__, android ? 'android' : 'windows');
       if (!mounted.current) return;
-      setCheck(result);
+      setLocalCheck(result);
+      setStored({ ...result, checkedAt: Date.now() });
       setPhase('ready');
       if (result.status === 'error') setError(result.error ?? '检查更新失败');
     } catch (cause) {
@@ -169,6 +191,19 @@ export function UpdateSection() {
         </div>
       </div>
 
+      {stored?.checkedAt && (
+        <p className="settings-hint">
+          上次检查：{new Date(stored.checkedAt).toLocaleString()}
+          {stored.status === 'available'
+            ? ' · 发现新版本'
+            : stored.status === 'up-to-date'
+              ? ' · 已是最新'
+              : ' · 检查未能完成'}
+          。启动时会静默检查一次，只有你点「检查更新」才会再联网。
+        </p>
+      )}
+      {storedChecking && !check && <p className="settings-hint">正在后台检查更新…</p>}
+
       {available && (
         <div className="update-card">
           <div className="update-card-head">
@@ -178,7 +213,14 @@ export function UpdateSection() {
               {asset ? ` · ${formatDownloadSize(asset.size)}` : ''}
             </span>
           </div>
-          {check?.notes && <pre className="update-notes">{check.notes}</pre>}
+          {check?.notes && (
+            // Release notes come from the CHANGELOG section, so they are
+            // markdown. Rendering (sanitised) beats a wall of `###` markers.
+            <div
+              className="update-notes markdown"
+              dangerouslySetInnerHTML={{ __html: renderMarkdown(check.notes) }}
+            />
+          )}
           {asset ? (
             <button
               type="button"
@@ -201,6 +243,8 @@ export function UpdateSection() {
       )}
 
       {upToDate && <p className="settings-hint">已经是最新版本。</p>}
+
+      {!check && !storedChecking && <p className="settings-hint">还没有检查过更新。</p>}
 
       {STATUS_LABEL[phase] && (
         <p className="update-progress-line">

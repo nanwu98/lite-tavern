@@ -1,14 +1,28 @@
 import { useEffect, useRef, useState } from 'react';
 import { Modal } from './Modal';
+import { ModelPicker } from './ModelPicker';
 import { useStore } from '../store';
 import { DEFAULT_SETTINGS } from '../defaults';
 import type { ProviderId, Settings } from '../types';
-import { testConnection } from '../lib/api';
+import { listModels, testConnection } from '../lib/api';
 import { formatLimit } from '../lib/tokens';
-import { PROVIDERS, applyProviderSelection, getProvider, linkLabel } from '../lib/providers';
+import {
+  PROVIDERS,
+  applyProviderSelection,
+  getProvider,
+  linkLabel,
+  type ProviderModel,
+} from '../lib/providers';
 import { backupFileName, parseBackup, statsSummary, type BackupPayload } from '../lib/backup';
 import { pickTextFile, saveTextFile } from '../lib/backupFile';
-import { IconAlert, IconArchive, IconCheck, IconCompress, IconSparkles } from './Icons';
+import {
+  IconAlert,
+  IconArchive,
+  IconCheck,
+  IconCompress,
+  IconRefresh,
+  IconSparkles,
+} from './Icons';
 import { UpdateSection } from './UpdateSection';
 
 interface SettingsModalProps {
@@ -16,7 +30,14 @@ interface SettingsModalProps {
   onClose: () => void;
 }
 
-const CONTEXT_PRESETS = [65_536, 131_072, 262_144];
+const CONTEXT_PRESETS = [65_536, 131_072, 262_144, 1_048_576];
+
+/**
+ * Model ids fetched from a provider, kept per provider for the session so
+ * flipping back and forth does not re-fetch (and does not lose an expensive
+ * 400-model listing).
+ */
+const liveModelCache = new Map<string, string[]>();
 
 export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const settings = useStore((s) => s.settings);
@@ -45,6 +66,40 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
     name: string;
     payload: BackupPayload;
   } | null>(null);
+  const [liveModels, setLiveModels] = useState<string[]>([]);
+  const [fetching, setFetching] = useState(false);
+  const [fetchError, setFetchError] = useState('');
+
+  const pickerModels: ProviderModel[] = (() => {
+    const byId = new Map<string, ProviderModel>();
+    for (const model of preset.models) byId.set(model.id, model);
+    for (const id of liveModels) if (!byId.has(id)) byId.set(id, { id, label: '' });
+    return [...byId.values()];
+  })();
+
+  const fetchLiveModels = async () => {
+    const apiKey = readApiKey();
+    if (!apiKey) {
+      setFetchError('请先填写 API Key：获取模型列表需要向服务商鉴权。');
+      return;
+    }
+    setFetching(true);
+    setFetchError('');
+    try {
+      const { models, missing } = await listModels({ ...draft, apiKey });
+      if (missing) {
+        setFetchError('这个服务商没有公开的模型列表接口。上面的推荐模型（以及手动输入）仍然可用。');
+        return;
+      }
+      setLiveModels(models);
+      liveModelCache.set(draft.provider, models);
+      toast(`已获取 ${models.length} 个模型，点开下拉框可以搜索选择`, 'success');
+    } catch (error) {
+      setFetchError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setFetching(false);
+    }
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -67,6 +122,8 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
       apiKeyRef.current = settings.apiKey;
       setTestResult(null);
       setTesting(false);
+      setLiveModels(liveModelCache.get(settings.provider) ?? []);
+      setFetchError('');
     }
     wasOpen.current = open;
   }, [open, settings]);
@@ -218,6 +275,9 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                   const next = applyProviderSelection(draft, e.target.value as ProviderId);
                   apiKeyRef.current = next.apiKey;
                   setDraft(next);
+                  setLiveModels(liveModelCache.get(next.provider) ?? []);
+                  setFetchError('');
+                  setTestResult(null);
                 }}
               >
                 {PROVIDERS.map((provider) => (
@@ -231,29 +291,33 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             </div>
             <div className="field">
               <label htmlFor="model">模型</label>
-              <input
+              <ModelPicker
                 id="model"
                 value={draft.model}
-                onChange={(e) => patch({ model: e.target.value })}
-                list="model-options"
-                placeholder={preset.models[0]?.id ?? '模型名'}
-                spellCheck={false}
+                models={pickerModels}
+                onChange={(model) => patch({ model })}
+                placeholder={preset.models[0]?.id ?? '选择或输入模型名'}
               />
-              <datalist id="model-options">
-                {preset.models.map((item) => (
-                  <option key={item.id} value={item.id} />
-                ))}
-              </datalist>
+              {fetchError ? (
+                <p className="field-hint form-hint-warn">
+                  <IconAlert width={12} height={12} /> {fetchError}
+                </p>
+              ) : liveModels.length > 0 ? (
+                <p className="field-hint">
+                  已获取 {liveModels.length} 个模型，点开下拉框可以搜索。
+                </p>
+              ) : null}
             </div>
           </div>
           {preset.models.length > 0 && (
             <div className="quick-models">
-              {preset.models.slice(0, 4).map((item) => (
+              {pickerModels.slice(0, 5).map((item) => (
                 <button
                   key={item.id}
                   type="button"
                   className={`chip ${draft.model === item.id ? 'active' : ''}`}
                   onClick={() => patch({ model: item.id })}
+                  title={item.label || item.id}
                 >
                   {item.id}
                 </button>
@@ -319,6 +383,16 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               disabled={testing}
             >
               {testing ? '测试中…' : '测试连接'}
+            </button>
+            <button
+              type="button"
+              className="btn btn-small btn-ghost"
+              onClick={() => void fetchLiveModels()}
+              disabled={fetching}
+              title="用当前 Key 调用服务商的 /models 接口，拉取账号下可用的模型"
+            >
+              <IconRefresh width={13} height={13} />
+              {fetching ? '获取中…' : '获取最新模型'}
             </button>
             {testResult && (
               <span className={`test-result ${testResult.ok ? 'ok' : 'bad'}`}>

@@ -5,6 +5,7 @@ import { streamChat, ApiError } from '../lib/api';
 import { compactChat, canCompact, AUTO_COMPACT_RATIO, COMPACT_KEEP_RECENT } from '../lib/compact';
 import { formatTokenCount } from '../lib/tokens';
 import { eventBus, tavern_events } from '../lib/tavern/events';
+import { settingsForChat } from '../lib/chatSettings';
 import type { ChatMessage } from '../types';
 
 function errorText(error: unknown): string {
@@ -50,6 +51,9 @@ export function useChat(onNeedSettings: () => void) {
         useStore.getState().failMessage(chatId, assistantId, '角色卡不存在，无法发送。');
         return;
       }
+      // This chat may carry its own context window; fold it in before anything
+      // reads `contextLimit` (auto-compaction, the summarizer, the usage meter).
+      const chatSettings = settingsForChat(modelSettings, chat);
       const books = booksForCharacter(chatState, character);
 
       /** Builds the prompt from the newest state (messages change during compaction). */
@@ -59,7 +63,7 @@ export function useChat(onNeedSettings: () => void) {
           character,
           books,
           latest?.messages ?? messages,
-          modelSettings,
+          chatSettings,
           latest?.compaction,
         );
       };
@@ -74,8 +78,8 @@ export function useChat(onNeedSettings: () => void) {
 
       // Automatic compaction: once the estimated prompt reaches 80% of the
       // window, fold the oldest messages into the rolling memory first.
-      if (modelSettings.autoCompact) {
-        const limit = Math.max(1000, Math.round(modelSettings.contextLimit) || 65536);
+      if (chatSettings.autoCompact) {
+        const limit = Math.max(1000, Math.round(chatSettings.contextLimit) || 65536);
         if (prompt.tokens >= limit * AUTO_COMPACT_RATIO) {
           const latest = useStore.getState().chats.find((c) => c.id === chatId);
           if (latest && canCompact(latest)) {
@@ -83,7 +87,7 @@ export function useChat(onNeedSettings: () => void) {
             useStore.getState().toast(`上下文已到 ${percent}%，正在自动压缩…`, 'info');
             try {
               await compactChat(chatId, {
-                settings: modelSettings,
+                settings: chatSettings,
                 character,
                 signal: controller.signal,
               });

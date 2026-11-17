@@ -51,6 +51,31 @@ describe('provider presets', () => {
     expect(providerModels('deepseek').length).toBeGreaterThan(0);
   });
 
+  it('ships current model ids, not the retired DeepSeek chat aliases', () => {
+    const deepseek = providerModels('deepseek').map((model) => model.id);
+    expect(deepseek).toContain('deepseek-flash');
+    expect(deepseek).toContain('deepseek-v4-pro');
+    // DeepSeek stopped serving these names on 2026-07-24.
+    expect(deepseek).not.toContain('deepseek-chat');
+    expect(deepseek).not.toContain('deepseek-reasoner');
+
+    const retired = ['deepseek-chat', 'deepseek-reasoner', 'kimi-k2-0905-preview'];
+    for (const provider of PROVIDERS) {
+      for (const model of provider.models) {
+        expect(retired).not.toContain(model.id);
+      }
+    }
+  });
+
+  it('pre-fills a context window that fits the provider it belongs to', () => {
+    for (const provider of PROVIDERS) {
+      if (provider.id === 'custom') continue;
+      expect(provider.contextLimit ?? 0).toBeGreaterThanOrEqual(8_000);
+      expect(provider.contextLimit ?? 0).toBeLessThanOrEqual(2_000_000);
+    }
+    expect(getProvider('deepseek').contextLimit).toBe(1_000_000);
+  });
+
   it('formats link labels without the scheme', () => {
     expect(linkLabel('https://platform.deepseek.com/api_keys')).toBe(
       'platform.deepseek.com/api_keys',
@@ -66,8 +91,8 @@ describe('switching providers', () => {
     const next = applyProviderSelection(settings, 'zhipu');
     expect(next.provider).toBe('zhipu');
     expect(next.baseUrl).toBe('https://open.bigmodel.cn/api/paas/v4');
-    expect(next.model).toBe('glm-4.6');
-    expect(next.contextLimit).toBe(131_072);
+    expect(next.model).toBe('glm-5.3');
+    expect(next.contextLimit).toBe(1_000_000);
     expect(next.apiKey).toBe('zhipu-key');
   });
 
@@ -118,6 +143,22 @@ describe('migrating stored settings', () => {
     const normalized = normalizeSettings(stored);
     expect(normalized.provider).toBe('qwen');
     expect(normalized.apiKeys).toEqual({ deepseek: 'deepseek-key', qwen: 'qwen-key' });
+  });
+
+  it('migrates a saved deepseek-chat to the model that replaced it', () => {
+    const legacy = {
+      ...DEFAULT_SETTINGS,
+      provider: 'deepseek',
+      model: 'deepseek-chat',
+    } as unknown as Partial<Settings>;
+    expect(normalizeSettings(legacy).model).toBe('deepseek-flash');
+    expect(normalizeSettings({ ...legacy, model: 'deepseek-reasoner' }).model).toBe(
+      'deepseek-flash',
+    );
+    // A hand-typed id is left alone: only known retired aliases are rewritten.
+    expect(normalizeSettings({ ...legacy, model: 'my-custom-model' }).model).toBe(
+      'my-custom-model',
+    );
   });
 
   it('does not invent a provider when nothing is stored', () => {

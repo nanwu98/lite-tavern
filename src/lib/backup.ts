@@ -1,4 +1,12 @@
-import type { Character, Chat, ChatMessage, WorldBook, WorldBookEntry } from '../types';
+import type {
+  Character,
+  Chat,
+  ChatMessage,
+  ChatOverrides,
+  WorldBook,
+  WorldBookEntry,
+} from '../types';
+import { normalizeOverrides } from './chatSettings';
 import { uid } from './util';
 
 /**
@@ -235,6 +243,8 @@ function normalizeChat(raw: unknown): Chat | null {
   const characterId = asString(chat.characterId);
   if (!characterId) return null;
   const compaction = chat.compaction as Record<string, unknown> | undefined;
+  const overrides = normalizeOverrides(chat.overrides as ChatOverrides | undefined);
+  const background = asString(chat.background);
   return {
     id: asString(chat.id) || uid(),
     characterId,
@@ -242,6 +252,10 @@ function normalizeChat(raw: unknown): Chat | null {
     messages,
     createdAt: Number(chat.createdAt) || Date.now(),
     updatedAt: Number(chat.updatedAt) || Date.now(),
+    overrides,
+    // Only inline images are portable: an http URL would silently break on
+    // another device (and is a privacy leak), so it is dropped on import.
+    background: background.startsWith('data:image/') ? background : undefined,
     compaction:
       compaction && typeof compaction === 'object' && asString(compaction.summary).trim()
         ? {

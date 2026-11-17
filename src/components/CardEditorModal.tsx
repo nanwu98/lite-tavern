@@ -3,6 +3,7 @@ import type { Character } from '../types';
 import { Modal } from './Modal';
 import { useStore } from '../store';
 import { blobToDataUrl, shrinkDataUrl } from '../lib/image';
+import { IconAlert } from './Icons';
 
 interface CardEditorModalProps {
   open: boolean;
@@ -39,15 +40,24 @@ export function CardEditorModal({ open, character, onClose, onSaved }: CardEdito
   const toast = useStore((s) => s.toast);
   const [draft, setDraft] = useState<Draft>(EMPTY);
   const [saving, setSaving] = useState(false);
+  /** Shown inline above the footer; a toast alone sat behind the modal. */
+  const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const nameRef = useRef<HTMLInputElement | null>(null);
   const wasOpen = useRef(false);
 
   useEffect(() => {
-    if (open && !wasOpen.current) setDraft(draftOf(character));
+    if (open && !wasOpen.current) {
+      setDraft(draftOf(character));
+      setError(null);
+    }
     wasOpen.current = open;
   }, [open, character]);
 
-  const patch = (value: Partial<Draft>) => setDraft((current) => ({ ...current, ...value }));
+  const patch = (value: Partial<Draft>) => {
+    setError(null);
+    setDraft((current) => ({ ...current, ...value }));
+  };
 
   const pickAvatar = async (file: File | null) => {
     if (!file) return;
@@ -66,13 +76,16 @@ export function CardEditorModal({ open, character, onClose, onSaved }: CardEdito
   const save = () => {
     const name = draft.name.trim();
     if (!name) {
-      toast('请填写角色名', 'error');
+      setError('请填写角色名');
+      nameRef.current?.focus();
+      nameRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
       return;
     }
     if (!draft.systemPrompt.trim() && !draft.firstMes.trim()) {
-      toast('提示词和开场白至少填一项', 'error');
+      setError('提示词和开场白至少填一项');
       return;
     }
+    setError(null);
     setSaving(true);
     try {
       if (character) {
@@ -126,6 +139,12 @@ export function CardEditorModal({ open, character, onClose, onSaved }: CardEdito
       }
     >
       <div className="card-editor">
+        {error && (
+          <div className="form-error" role="alert">
+            <IconAlert width={14} height={14} />
+            <span>{error}</span>
+          </div>
+        )}
         <div className="card-editor-top">
           <button
             type="button"
@@ -146,10 +165,12 @@ export function CardEditorModal({ open, character, onClose, onSaved }: CardEdito
               <label htmlFor="card-name">角色名</label>
               <input
                 id="card-name"
+                ref={nameRef}
                 value={draft.name}
                 onChange={(e) => patch({ name: e.target.value })}
                 placeholder="例如：临渊"
                 maxLength={80}
+                aria-invalid={error === '请填写角色名'}
               />
             </div>
             <div className="field">
