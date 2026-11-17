@@ -6,10 +6,12 @@ import { installRuntime } from './lib/tavern/runtime';
 import { loadGlobalScope } from './lib/tavern/variables';
 import { installPolyfills } from './lib/tavern/polyfills';
 import { applyTheme } from './lib/theme';
+import { initSystemBars } from './lib/systemBars';
 
 installPolyfills();
 installRuntime();
 applyTheme('system');
+void initSystemBars();
 void loadGlobalScope();
 
 createRoot(document.getElementById('root')!).render(

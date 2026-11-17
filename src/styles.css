@@ -3986,3 +3986,17 @@ button:focus-visible {
   color: var(--accent);
   font-variant-numeric: tabular-nums;
 }
+
+/* ---------- Android edge-to-edge ----------
+   The Android shell draws the page behind the status and navigation bars and
+   publishes their sizes as --safe-* (see src/lib/systemBars.ts). Padding the
+   shell — not the window — keeps the aurora background under the bars, so the
+   app colour reaches the screen edges instead of leaving a black strip. On
+   desktop and in a browser the variables are unset and this is a no-op. */
+.app {
+  box-sizing: border-box;
+  padding-top: var(--safe-top, 0px);
+  padding-bottom: var(--safe-bottom, 0px);
+  padding-left: var(--safe-left, 0px);
+  padding-right: var(--safe-right, 0px);
+}

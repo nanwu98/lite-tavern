@@ -1,4 +1,5 @@
 import type { ThemeMode } from '../types';
+import { syncSystemBarIcons } from './systemBars';
 
 export type ResolvedTheme = 'dark' | 'light';
 
@@ -24,6 +25,8 @@ export function applyTheme(mode: ThemeMode): ResolvedTheme {
   } catch {
     // The desktop bridge is optional (web / Android).
   }
+  // Android draws behind the bars, so their icons must follow the theme.
+  void syncSystemBarIcons();
   return resolved;
 }
 

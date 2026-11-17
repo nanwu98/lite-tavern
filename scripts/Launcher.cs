@@ -10,12 +10,12 @@ using System.Windows.Forms;
 [assembly: AssemblyTitle("轻语酒馆")]
 [assembly: AssemblyProduct("轻语酒馆")]
 [assembly: AssemblyDescription("轻语酒馆 - 极简角色卡 × 世界书聊天")]
-[assembly: AssemblyVersion("1.6.1.0")]
-[assembly: AssemblyFileVersion("1.6.1.0")]
+[assembly: AssemblyVersion("1.6.2.0")]
+[assembly: AssemblyFileVersion("1.6.2.0")]
 
 static class Program
 {
-    private const string AppVersion = "1.6.1";
+    private const string AppVersion = "1.6.2";
 
     [STAThread]
     private static void Main(string[] args)

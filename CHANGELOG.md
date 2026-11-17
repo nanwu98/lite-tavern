@@ -4,6 +4,23 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.6.2] - 2026-11-17
+
+### Fixed
+
+- Android 状态栏/导航栏不沉浸：窗口默认不绘制到系统栏后面，状态栏被主题色涂成一条黑边
+  （红米 Turbo 5 Max / HyperOS 上很明显）。现在 `MainActivity` 开启 edge-to-edge、
+  两条系统栏设为透明，并用 `LiteShell` 插件把实测的 insets 通过 `--safe-top` /
+  `--safe-bottom` 交给界面自行留白，应用背景（极光渐变）一直延伸到屏幕边缘；
+  浅色主题下状态栏图标会自动转为深色。
+- 注入的 insets 按「系统栏 + 刘海区」取最大值，横屏和挖孔屏也不会被切掉内容。
+
+### Notes
+
+- 同一套 `WindowInsets` 方案覆盖小米 / HyperOS、OPPO、vivo、荣耀等国产 ROM，无需按品牌
+  分支；这也是金标联盟（ITGSA）要求 2026-10-31 前完成的统一导航条适配规范。
+- Android 15 起系统强制 edge-to-edge，本实现同时适配目标 SDK 34 的旧行为与新版系统。
+
 ## [1.6.1] - 2026-11-17
 
 ### Fixed
