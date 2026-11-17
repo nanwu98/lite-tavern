@@ -256,6 +256,7 @@ function normalizeChat(raw: unknown): Chat | null {
     // Only inline images are portable: an http URL would silently break on
     // another device (and is a privacy leak), so it is dropped on import.
     background: background.startsWith('data:image/') ? background : undefined,
+    backgroundCard: chat.backgroundCard === true ? true : undefined,
     compaction:
       compaction && typeof compaction === 'object' && asString(compaction.summary).trim()
         ? {

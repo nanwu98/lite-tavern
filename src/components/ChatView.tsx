@@ -373,6 +373,9 @@ export function ChatView({
   const usagePercent = Math.min(999, Math.round(usage.ratio * 100));
   const nearLimit = usage.ratio >= AUTO_COMPACT_RATIO;
   const memory = chat.compaction;
+  /** The card's own picture can stand in as the background (JSON cards have none). */
+  const backgroundImage =
+    chat.backgroundCard && character.avatar ? character.avatar : chat.background;
 
   const hasScripts = Boolean(
     cardScriptsEnabled && character.code?.scripts?.some((s) => s.enabled && s.content.trim()),
@@ -449,11 +452,11 @@ export function ChatView({
   const lastAssistant = [...chat.messages].reverse().find((m) => m.role === 'assistant');
 
   return (
-    <main className={`chat-view ${chat.background ? 'has-bg' : ''}`}>
-      {chat.background && (
+    <main className={`chat-view ${backgroundImage ? 'has-bg' : ''}`}>
+      {backgroundImage && (
         <div
           className="chat-bg"
-          style={{ backgroundImage: `url("${chat.background}")` }}
+          style={{ backgroundImage: `url("${backgroundImage}")` }}
           aria-hidden="true"
         />
       )}
@@ -599,6 +602,7 @@ export function ChatView({
         open={chatSettingsOpen}
         chat={chat}
         characterName={character.name}
+        characterAvatar={character.avatar}
         onClose={() => setChatSettingsOpen(false)}
       />
 

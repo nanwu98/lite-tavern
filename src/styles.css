@@ -566,24 +566,40 @@ a:hover {
   opacity: 1;
 }
 
-.menu-backdrop {
+/*
+ * Card menu: a body-level portal (see CharacterRail). It used to be absolutely
+ * positioned inside the card with a sibling backdrop, so the panel's own
+ * stacking context trapped the backdrop, clicks fell through to the cards
+ * underneath and the translucent menu mixed with the card text behind it.
+ */
+.card-menu-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 40;
+  z-index: 4400;
+  background: transparent;
 }
 
 .card-menu {
-  position: absolute;
-  right: 6px;
-  top: 34px;
-  z-index: 41;
-  width: 188px;
+  position: fixed;
+  z-index: 4401;
+  overflow: auto;
+  overscroll-behavior: contain;
   background: var(--panel-2);
   border: 1px solid var(--line);
-  border-radius: 11px;
+  border-radius: 12px;
   box-shadow: var(--shadow);
   padding: 5px;
   animation: pop 0.12s ease-out;
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  backdrop-filter: blur(24px) saturate(150%);
+}
+
+[data-theme='dark'] .card-menu {
+  background: rgba(34, 28, 44, 0.97);
+}
+
+[data-theme='light'] .card-menu {
+  background: rgba(255, 252, 247, 0.98);
 }
 
 .card-menu button {
@@ -4439,4 +4455,105 @@ button:focus-visible {
 
 .test-row .btn {
   flex: 0 0 auto;
+}
+
+/* ==========================================================================
+   Collapsible desktop side panels
+   ========================================================================== */
+
+@media (min-width: 981px) {
+  /* Explicit columns so hiding one panel never shifts the others. */
+  .chat-list-panel {
+    grid-column: 1;
+  }
+
+  .chat-view {
+    grid-column: 2;
+  }
+
+  .character-panel {
+    grid-column: 3;
+  }
+
+  .app.collapse-left {
+    grid-template-columns: 0 minmax(0, 1fr) 320px;
+  }
+
+  .app.collapse-right {
+    grid-template-columns: 286px minmax(0, 1fr) 0;
+  }
+
+  .app.collapse-left.collapse-right {
+    grid-template-columns: 0 minmax(0, 1fr) 0;
+  }
+
+  .app.collapse-left .chat-list-panel,
+  .app.collapse-right .character-panel {
+    display: none;
+  }
+}
+
+.collapse-btn {
+  width: 26px !important;
+  height: 26px !important;
+  color: var(--muted-2);
+  opacity: 0.75;
+}
+
+.collapse-btn:hover {
+  opacity: 1;
+  color: var(--text);
+}
+
+/* Slim handle on the window edge while a panel is collapsed. */
+.panel-handle {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+  color: var(--text-soft);
+  background: var(--panel-3);
+  border: 1px solid var(--line);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 10px 26px -18px rgba(0, 0, 0, 0.9);
+  transition:
+    color 0.16s ease,
+    background 0.16s ease;
+}
+
+.panel-handle:hover {
+  color: var(--accent);
+  background: var(--panel-3);
+}
+
+.panel-handle.left {
+  left: 0;
+  border-left: 0;
+  border-radius: 0 11px 11px 0;
+}
+
+.panel-handle.right {
+  right: 0;
+  border-right: 0;
+  border-radius: 11px 0 0 11px;
+}
+
+/* ---------- "use the card picture as background" ---------- */
+.bg-card-switch {
+  margin-top: 10px;
+}
+
+.switch.is-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.switch.is-disabled .switch-track {
+  filter: grayscale(0.6);
 }

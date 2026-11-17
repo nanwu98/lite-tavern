@@ -1,7 +1,15 @@
 import { useMemo, useState } from 'react';
 import type { Character, Chat } from '../types';
 import { Avatar } from './Avatar';
-import { IconBook, IconPlus, IconSearch, IconSettings, IconSparkles, IconTrash } from './Icons';
+import {
+  IconBook,
+  IconChevronLeft,
+  IconPlus,
+  IconSearch,
+  IconSettings,
+  IconSparkles,
+  IconTrash,
+} from './Icons';
 import { formatTime, truncate } from '../lib/util';
 
 interface ChatListProps {
@@ -15,6 +23,8 @@ interface ChatListProps {
   onOpenCards: () => void;
   /** A newer release was found and the settings have not been opened since. */
   updateReady?: boolean;
+  /** Desktop only: hides the panel and leaves a restore handle. */
+  onCollapse?: () => void;
 }
 
 function lastPreview(chat: Chat): string {
@@ -37,6 +47,7 @@ export function ChatList({
   onOpenSettings,
   onOpenCards,
   updateReady,
+  onCollapse,
 }: ChatListProps) {
   const [query, setQuery] = useState('');
   const sorted = useMemo(() => [...chats].sort((a, b) => b.updatedAt - a.updatedAt), [chats]);
@@ -59,6 +70,16 @@ export function ChatList({
           <div className="brand-title">轻语酒馆</div>
           <div className="brand-sub">LiteTavern</div>
         </div>
+        {onCollapse && (
+          <button
+            className="icon-btn collapse-btn desktop-only"
+            onClick={onCollapse}
+            title="收起对话列表"
+            aria-label="收起对话列表"
+          >
+            <IconChevronLeft width={15} height={15} />
+          </button>
+        )}
         <button className="icon-btn" onClick={onOpenSettings} title="设置" aria-label="设置">
           <IconSettings />
           {updateReady && <span className="update-dot" title="有新版本可用" />}

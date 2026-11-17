@@ -98,7 +98,7 @@ interface AppState {
   /** Renames a chat or changes its per-chat settings / background. */
   updateChat: (
     chatId: string,
-    patch: Partial<Pick<Chat, 'title' | 'overrides' | 'background'>>,
+    patch: Partial<Pick<Chat, 'title' | 'overrides' | 'background' | 'backgroundCard'>>,
   ) => void;
   deleteChat: (chatId: string) => void;
   beginExchange: (chatId: string, text: string) => { assistantId: string } | null;

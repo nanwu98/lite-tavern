@@ -67,10 +67,15 @@ group chat, no plugin store, no cloud sync — just the story.
   `/models` endpoint and lists what your key can actually use, with a search box;
   the model id stays editable. Streaming, temperature, context length and
   world-book budget are adjustable.
-- **Chat settings (1.6.4+)**: every conversation has its own title, context window
-  (follow global / 64K / 128K / 256K / 1M / custom) and background picture
-  (uploaded, downscaled to 1920 px; dark mode adds a very light dark veil, light
-  mode does not).
+- **Chat settings (1.6.4+, card background in 1.6.5)**: every conversation has its own
+  title, context window (follow global / 64K / 128K / 256K / 1M / custom) and background
+  picture (uploaded, downscaled to 1920 px; dark mode adds a very light dark veil, light
+  mode does not). You can also tick **use the card picture as the background**: a PNG
+  card's avatar then doubles as the backdrop, while a JSON card (no picture) leaves the
+  option greyed out.
+- **Layout (1.6.5+)**: both desktop side panels collapse to the window edge, leaving a
+  slim handle to bring them back, and the choice is remembered. The card menu (⋯) is a
+  proper overlay that closes on an outside click.
 - **In-app updates (1.5.0+, silent check on launch since 1.6.4)**: the app checks
   for a release in the background at startup and lights a small red dot on the
   settings button when one exists; Settings → About & updates shows the version,
@@ -288,6 +293,9 @@ out embeddings, rerankers and image/audio models.
 - **Background**: upload a picture; it is downscaled to 1920 px (JPEG q0.82) and
   fills the chat area. Dark mode adds a very light dark veil for legibility, light
   mode adds nothing. It can be removed at any time and travels with backups.
+- **Use the card picture as the background**: the avatar then doubles as the backdrop and
+  follows any later card edit. Only cards with a picture (PNG imports) can use it — a JSON
+  card has no avatar, so the option is greyed out until you add one in "Edit card".
 
 ### Card code
 

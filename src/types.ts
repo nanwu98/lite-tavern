@@ -141,6 +141,8 @@ export interface Chat {
   overrides?: ChatOverrides;
   /** Data URL of the picture shown behind this conversation. */
   background?: string;
+  /** Use the character's own avatar as the background (JSON cards have none). */
+  backgroundCard?: boolean;
 }
 
 export type ThemeMode = 'system' | 'dark' | 'light';

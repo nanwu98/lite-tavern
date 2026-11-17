@@ -14,6 +14,8 @@ import { Modal } from './components/Modal';
 import { Toasts } from './components/Toasts';
 import {
   IconBook,
+  IconChevronLeft,
+  IconChevronRight,
   IconEdit,
   IconLogo,
   IconPlus,
@@ -29,6 +31,26 @@ import { checkForUpdates, isAndroidApp } from './lib/update';
 
 type ConfirmState =
   { kind: 'chat'; chat: Chat } | { kind: 'character'; character: Character } | null;
+
+/** Desktop side-panel collapse state survives reloads; mobile uses drawers. */
+const LEFT_COLLAPSE_KEY = 'lite-tavern-left-collapsed';
+const RIGHT_COLLAPSE_KEY = 'lite-tavern-right-collapsed';
+
+function readCollapsed(key: string): boolean {
+  try {
+    return localStorage.getItem(key) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeCollapsed(key: string, value: boolean) {
+  try {
+    localStorage.setItem(key, value ? '1' : '0');
+  } catch {
+    // Private mode / quota: the layout just resets next launch.
+  }
+}
 
 function LoadingScreen() {
   return (
@@ -181,6 +203,8 @@ export default function App() {
   const [leftOpen, setLeftOpen] = useState(false);
   const [rightOpen, setRightOpen] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [leftCollapsed, setLeftCollapsed] = useState(() => readCollapsed(LEFT_COLLAPSE_KEY));
+  const [rightCollapsed, setRightCollapsed] = useState(() => readCollapsed(RIGHT_COLLAPSE_KEY));
   const updateInfo = useStore((s) => s.updateInfo);
   const updateSeenVersion = useStore((s) => s.updateSeenVersion);
   const setUpdateInfo = useStore((s) => s.setUpdateInfo);
@@ -247,6 +271,14 @@ export default function App() {
     setLeftOpen(false);
     setRightOpen(false);
   }, [activeChatId]);
+
+  useEffect(() => {
+    writeCollapsed(LEFT_COLLAPSE_KEY, leftCollapsed);
+  }, [leftCollapsed]);
+
+  useEffect(() => {
+    writeCollapsed(RIGHT_COLLAPSE_KEY, rightCollapsed);
+  }, [rightCollapsed]);
 
   const theme = useStore((s) => s.settings.theme);
   const bossKeyEnabled = useStore((s) => s.settings.bossKeyEnabled);
@@ -566,7 +598,11 @@ export default function App() {
   if (!hydrated) return <LoadingScreen />;
 
   return (
-    <div className={`app ${leftOpen ? 'show-left' : ''} ${rightOpen ? 'show-right' : ''}`}>
+    <div
+      className={`app ${leftOpen ? 'show-left' : ''} ${rightOpen ? 'show-right' : ''} ${
+        leftCollapsed ? 'collapse-left' : ''
+      } ${rightCollapsed ? 'collapse-right' : ''}`}
+    >
       {(leftOpen || rightOpen) && (
         <div
           className="drawer-backdrop"
@@ -575,6 +611,27 @@ export default function App() {
             setRightOpen(false);
           }}
         />
+      )}
+
+      {leftCollapsed && (
+        <button
+          className="panel-handle left desktop-only"
+          onClick={() => setLeftCollapsed(false)}
+          title="展开对话列表"
+          aria-label="展开对话列表"
+        >
+          <IconChevronRight width={15} height={15} />
+        </button>
+      )}
+      {rightCollapsed && (
+        <button
+          className="panel-handle right desktop-only"
+          onClick={() => setRightCollapsed(false)}
+          title="展开角色卡列表"
+          aria-label="展开角色卡列表"
+        >
+          <IconChevronLeft width={15} height={15} />
+        </button>
       )}
 
       <ChatList
@@ -590,6 +647,7 @@ export default function App() {
           setRightOpen(true);
         }}
         updateReady={updateReady}
+        onCollapse={() => setLeftCollapsed(true)}
       />
 
       {chat && character ? (
@@ -647,6 +705,7 @@ export default function App() {
         onCreateWorldBook={(id) => setWbEditor({ open: true, book: null, attachTo: id })}
         onViewWorldBooks={(target) => setWbCharacterId(target.id)}
         onDeleteCharacter={requestDeleteCharacter}
+        onCollapse={() => setRightCollapsed(true)}
       />
 
       {importing && (

@@ -90,7 +90,7 @@ test.describe('desktop', () => {
   test('keeps the API key while testing the connection and after saving', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('.brand-title')).toBeVisible();
-    await page.locator('.brand .icon-btn').click();
+    await page.locator('.brand .icon-btn[aria-label="设置"]').click();
     await page.fill('#api-key', 'sk-test-key-123');
     await page.fill('#base-url', 'http://127.0.0.1:8787/v1');
     await chooseModel(page, 'deepseek-flash');
@@ -98,17 +98,17 @@ test.describe('desktop', () => {
     await expect(page.locator('.test-result')).toContainText('连接成功');
     await expect(page.locator('#api-key')).toHaveValue('sk-test-key-123');
     await page.keyboard.press('Escape');
-    await page.locator('.brand .icon-btn').click();
+    await page.locator('.brand .icon-btn[aria-label="设置"]').click();
     await expect(page.locator('#api-key')).toHaveValue('sk-test-key-123');
     await page.getByRole('button', { name: '保存设置' }).click();
-    await page.locator('.brand .icon-btn').click();
+    await page.locator('.brand .icon-btn[aria-label="设置"]').click();
     await expect(page.locator('#api-key')).toHaveValue('sk-test-key-123');
   });
 
   test('switches model providers and remembers a key for each', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('.brand-title')).toBeVisible();
-    await page.locator('.brand .icon-btn').click();
+    await page.locator('.brand .icon-btn[aria-label="设置"]').click();
 
     await chooseProvider(page, '通义千问');
     await expect(page.locator('#base-url')).toHaveValue(
@@ -140,7 +140,7 @@ test.describe('desktop', () => {
   test('picks a model from the custom dropdown and fetches the live list', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('.brand-title')).toBeVisible();
-    await page.locator('.brand .icon-btn').click();
+    await page.locator('.brand .icon-btn[aria-label="设置"]').click();
     await expect(page.locator('#api-key')).toBeVisible();
     await page.fill('#api-key', 'sk-test-key');
     await page.fill('#base-url', 'http://127.0.0.1:8787/v1');
@@ -274,7 +274,7 @@ test.describe('desktop', () => {
 
     // Editing the card keeps the chats and updates the list note.
     await page.locator('.card-menu-btn').first().click();
-    await page.locator('.card-menu').getByRole('button', { name: '编辑角色卡' }).click();
+    await page.locator('.card-menu').getByRole('menuitem', { name: '编辑角色卡' }).click();
     await page.locator('#card-notes').fill('雾港守夜人（已改）');
     await page.locator('#card-greeting').fill('「今天轮到你守夜。」');
     await page.getByRole('button', { name: '保存修改' }).click();
@@ -283,7 +283,7 @@ test.describe('desktop', () => {
 
     // Create a world book and attach it to the card.
     await page.locator('.card-menu-btn').first().click();
-    await page.locator('.card-menu').getByRole('button', { name: '新建世界书' }).click();
+    await page.locator('.card-menu').getByRole('menuitem', { name: '新建世界书' }).click();
     await page.locator('#wb-name').fill('雾港设定集');
     await page.locator('#wb-entry-0-keys').fill('灯塔');
     await page.locator('#wb-entry-0-content').fill('灯塔每夜点亮，守夜人负责添油。');
@@ -292,7 +292,7 @@ test.describe('desktop', () => {
 
     // Edit it from the viewer.
     await page.locator('.card-menu-btn').first().click();
-    await page.locator('.card-menu').getByRole('button', { name: '查看世界书' }).click();
+    await page.locator('.card-menu').getByRole('menuitem', { name: '查看世界书' }).click();
     await expect(page.locator('.wb-modal')).toContainText('雾港设定集');
     await page.locator('.wb-modal').getByRole('button', { name: '编辑' }).first().click();
     await page.locator('#wb-entry-0-comment').fill('灯塔（修订）');
@@ -405,7 +405,7 @@ test.describe('desktop', () => {
     await expect(page.locator('.brand-title')).toBeVisible();
     await expect(page.locator('.update-dot').first()).toBeVisible({ timeout: 30_000 });
 
-    await page.locator('.brand .icon-btn').click();
+    await page.locator('.brand .icon-btn[aria-label="设置"]').click();
     await expect(page.locator('.update-card')).toContainText('9.9.9');
     await expect(page.locator('.update-notes')).toContainText('这是测试用的更新说明');
     await page.screenshot({ path: path.join(SHOTS, 'desktop-update-dot.png') });
@@ -413,6 +413,90 @@ test.describe('desktop', () => {
 
     await page.keyboard.press('Escape');
     await expect(page.locator('.update-dot')).toHaveCount(0);
+  });
+
+  test('opens the card menu above the cards and closes on an outside click', async ({ page }) => {
+    await importCard(page);
+
+    const menuButton = page.locator('.card-menu-btn').first();
+    await menuButton.click();
+    const menu = page.locator('.card-menu');
+    await expect(menu).toBeVisible();
+
+    // The regression: the menu lived inside the card, so the next card painted
+    // over it and clicks landed on that card instead of the menu item.
+    const onTop = await page.evaluate(() => {
+      const el = document.querySelector('.card-menu');
+      if (!el) return false;
+      const rect = el.getBoundingClientRect();
+      const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+      return Boolean(hit && el.contains(hit));
+    });
+    expect(onTop).toBe(true);
+
+    // Clicking somewhere else closes it.
+    await page.mouse.click(720, 140);
+    await expect(menu).toHaveCount(0);
+
+    // And a menu item really runs, instead of hitting the card underneath.
+    await menuButton.click();
+    await menu.getByRole('menuitem', { name: '编辑角色卡' }).click();
+    await expect(page.locator('#card-name')).toBeVisible();
+    await expect(page.locator('#card-name')).toHaveValue('测试角色·阿绫');
+  });
+
+  test('collapses both desktop side panels and restores them', async ({ page }) => {
+    await importCard(page);
+    const left = page.locator('.chat-list-panel');
+    const right = page.locator('.character-panel');
+    await expect(left).toBeVisible();
+    await expect(right).toBeVisible();
+
+    await left.locator('.collapse-btn').click();
+    await expect(left).toBeHidden();
+    await expect(page.locator('.panel-handle.left')).toBeVisible();
+    await page.locator('.panel-handle.left').click();
+    await expect(left).toBeVisible();
+    await expect(page.locator('.panel-handle.left')).toHaveCount(0);
+
+    await right.locator('.collapse-btn').click();
+    await expect(right).toBeHidden();
+    await expect(page.locator('.panel-handle.right')).toBeVisible();
+
+    // The choice survives a reload.
+    await page.reload();
+    await expect(right).toBeHidden();
+    await page.locator('.panel-handle.right').click();
+    await expect(right).toBeVisible();
+  });
+
+  test('can use the character picture as the chat background', async ({ page }) => {
+    // A JSON card carries no picture, so the option stays disabled.
+    await importCard(page);
+    await page.getByLabel('对话设置').click();
+    const toggle = page.locator('.bg-card-switch input');
+    await expect(toggle).toBeDisabled();
+    await expect(page.locator('.bg-card-switch')).toHaveClass(/is-disabled/);
+    await expect(page.locator('.chat-settings-modal')).toContainText('这张卡没有图片');
+    await page.getByRole('button', { name: '取消' }).click();
+
+    // A PNG card has one, so it can be the background too.
+    await page.goto('/');
+    await page.locator('#card-file-input').setInputFiles(PNG);
+    await expect(page.locator('.bubble-assistant').first()).toBeVisible({ timeout: 20_000 });
+    await page.getByLabel('对话设置').click();
+    await expect(toggle).toBeEnabled();
+    // The real checkbox is visually hidden behind the switch track; click the label.
+    await page.locator('.bg-card-switch').click();
+    await expect(toggle).toBeChecked();
+    await page.getByRole('button', { name: '保存' }).click();
+
+    const bg = page.locator('.chat-bg');
+    await expect(bg).toBeVisible();
+    const backgroundImage = await bg.evaluate((el) => getComputedStyle(el).backgroundImage);
+    expect(backgroundImage).toContain('data:image');
+    await page.reload();
+    await expect(page.locator('.chat-bg')).toBeVisible();
   });
 
   test('shows every card on the start screen and deletes one after a second confirmation', async ({
@@ -499,7 +583,7 @@ test.describe('desktop', () => {
     await expect(page.locator('.character-card')).toHaveCount(0);
 
     // --- import -------------------------------------------------------
-    await page.locator('.brand .icon-btn').click();
+    await page.locator('.brand .icon-btn[aria-label="设置"]').click();
     const chooserPromise = page.waitForEvent('filechooser');
     await page.getByRole('button', { name: '导入备份…' }).click();
     const chooser = await chooserPromise;
@@ -518,7 +602,7 @@ test.describe('desktop', () => {
     await expect(page.locator('.msg-user').last()).toContainText('带我去钟楼。');
 
     // Importing the same file again is a no-op rather than a duplicate.
-    await page.locator('.brand .icon-btn').click();
+    await page.locator('.brand .icon-btn[aria-label="设置"]').click();
     const secondChooserPromise = page.waitForEvent('filechooser');
     await page.getByRole('button', { name: '导入备份…' }).click();
     const secondChooser = await secondChooserPromise;
@@ -650,7 +734,7 @@ test.describe('desktop', () => {
     const card = page.locator('.character-card').first();
     await card.hover();
     await page.locator('.card-menu-btn').first().click();
-    await page.locator('.card-menu').getByRole('button', { name: '查看世界书' }).click();
+    await page.locator('.card-menu').getByRole('menuitem', { name: '查看世界书' }).click();
     await expect(page.getByRole('heading', { name: /测试角色·阿绫 · 世界书/ })).toBeVisible();
     await expect(page.locator('.wb-modal')).toContainText('钟楼与档案室');
     await expect(page.locator('.wb-modal')).toContainText('黄铜钥匙');
@@ -662,7 +746,7 @@ test.describe('desktop', () => {
     await card.hover();
     await page.locator('.card-menu-btn').first().click();
     const chooserPromise = page.waitForEvent('filechooser');
-    await page.locator('.card-menu').getByRole('button', { name: '导入 / 替换世界书' }).click();
+    await page.locator('.card-menu').getByRole('menuitem', { name: '导入 / 替换世界书' }).click();
     const chooser = await chooserPromise;
     await chooser.setFiles(WORLD);
     await expect(page.locator('.toast')).toContainText('已挂载');
@@ -671,7 +755,7 @@ test.describe('desktop', () => {
     await dismissToasts(page);
     await card.hover();
     await page.locator('.card-menu-btn').first().click();
-    await page.locator('.card-menu').getByRole('button', { name: '查看世界书' }).click();
+    await page.locator('.card-menu').getByRole('menuitem', { name: '查看世界书' }).click();
     await expect(page.locator('.wb-modal')).toContainText('海雾');
     await expect(page.locator('.wb-modal')).toContainText('手动导入');
     await expect(

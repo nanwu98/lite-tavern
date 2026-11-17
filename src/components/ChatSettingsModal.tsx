@@ -12,6 +12,8 @@ interface ChatSettingsModalProps {
   chat: Chat;
   /** Used as the fallback title when the field is cleared. */
   characterName: string;
+  /** The card's picture; JSON-imported cards have none, so the card背景 option stays off. */
+  characterAvatar?: string;
   onClose: () => void;
 }
 
@@ -22,13 +24,21 @@ function chipLabel(limit: number): string {
   return limit >= 1_048_576 ? `${Math.round(limit / 1_048_576)}M` : `${Math.round(limit / 1024)}K`;
 }
 
-export function ChatSettingsModal({ open, chat, characterName, onClose }: ChatSettingsModalProps) {
+export function ChatSettingsModal({
+  open,
+  chat,
+  characterName,
+  characterAvatar,
+  onClose,
+}: ChatSettingsModalProps) {
   const globalLimit = useStore((s) => s.settings.contextLimit);
   const updateChat = useStore((s) => s.updateChat);
   const toast = useStore((s) => s.toast);
+  const canUseCard = Boolean(characterAvatar);
   const [title, setTitle] = useState(chat.title);
   const [limit, setLimit] = useState<number | ''>(chat.overrides?.contextLimit ?? '');
   const [background, setBackground] = useState<string | undefined>(chat.background);
+  const [useCard, setUseCard] = useState(Boolean(chat.backgroundCard) && canUseCard);
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const wasOpen = useRef(false);
@@ -38,9 +48,10 @@ export function ChatSettingsModal({ open, chat, characterName, onClose }: ChatSe
       setTitle(chat.title);
       setLimit(chat.overrides?.contextLimit ?? '');
       setBackground(chat.background);
+      setUseCard(Boolean(chat.backgroundCard) && canUseCard);
     }
     wasOpen.current = open;
-  }, [chat, open]);
+  }, [canUseCard, chat, open]);
 
   const pickBackground = async (file: File | null) => {
     if (!file) return;
@@ -69,10 +80,13 @@ export function ChatSettingsModal({ open, chat, characterName, onClose }: ChatSe
       title: title.trim() || characterName,
       overrides: normalizeOverrides({ contextLimit: clamped }),
       background,
+      backgroundCard: useCard && canUseCard ? true : undefined,
     });
     toast('对话设置已保存', 'success');
     onClose();
   };
+
+  const preview = useCard ? characterAvatar : background;
 
   return (
     <Modal
@@ -146,22 +160,39 @@ export function ChatSettingsModal({ open, chat, characterName, onClose }: ChatSe
 
       <div className="field">
         <label>背景图</label>
-        <div className={`chat-bg-picker ${background ? 'has-image' : ''}`}>
-          {background ? (
-            <img src={background} alt="对话背景预览" />
+        <div className={`chat-bg-picker ${preview ? 'has-image' : ''}`}>
+          {preview ? (
+            <img src={preview} alt="对话背景预览" />
           ) : (
             <div className="chat-bg-empty">
               <IconImage width={22} height={22} />
-              <span>还没有背景图</span>
+              <span>{useCard ? '这张卡没有图片' : '还没有背景图'}</span>
             </div>
           )}
         </div>
+
+        <label className={`switch bg-card-switch ${canUseCard ? '' : 'is-disabled'}`}>
+          <input
+            type="checkbox"
+            checked={useCard}
+            disabled={!canUseCard}
+            onChange={(event) => setUseCard(event.target.checked)}
+          />
+          <span className="switch-track" />
+          <span>用角色卡图片作为背景</span>
+        </label>
+        <p className="field-hint">
+          {canUseCard
+            ? '勾选后，这张卡的头像同时充当聊天区背景（跟着卡片走，换头像会自动更新）；下面上传的背景图会保留但不再显示。'
+            : '这张卡没有图片（JSON 导入的卡没有头像），所以不能作为背景；可以先在「编辑角色卡」里补一张头像。'}
+        </p>
+
         <div className="chat-bg-actions">
           <button
             type="button"
             className="btn btn-small btn-ghost"
             onClick={() => fileRef.current?.click()}
-            disabled={busy}
+            disabled={busy || useCard}
           >
             <IconImage width={14} height={14} />{' '}
             {busy ? '处理中…' : background ? '更换图片' : '选择图片'}
@@ -171,11 +202,12 @@ export function ChatSettingsModal({ open, chat, characterName, onClose }: ChatSe
               type="button"
               className="btn btn-small btn-ghost btn-danger-ghost"
               onClick={() => setBackground(undefined)}
+              disabled={useCard}
             >
               <IconTrash width={14} height={14} /> 移除
             </button>
           )}
-          {background && (
+          {background && !useCard && (
             <span className="settings-hint">
               约 {Math.max(1, Math.round(background.length / 1024))} KB
             </span>

@@ -1,136 +1,9 @@
-import { useMemo, useState } from 'react';
-import type { Character, Chat, WorldBook } from '../types';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import type { Character, WorldBook } from '../types';
 import { Avatar } from './Avatar';
-import { IconBook, IconEdit, IconPlus, IconSettings, IconSparkles, IconTrash } from './Icons';
-import { formatTime, truncate } from '../lib/util';
-
-interface ChatListProps {
-  chats: Chat[];
-  characters: Character[];
-  activeChatId: string | null;
-  onSelect: (id: string) => void;
-  onNew: () => void;
-  onRequestDelete: (chat: Chat) => void;
-  onOpenSettings: () => void;
-  onOpenCards: () => void;
-}
-
-function lastPreview(chat: Chat): string {
-  const last = [...chat.messages].reverse().find((m) => m.content.trim());
-  if (!last) return '还没有消息';
-  const text = last.content
-    .replace(/[#*>`_~\-]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-  return `${last.role === 'user' ? '你：' : ''}${truncate(text, 46)}`;
-}
-
-export function ChatList({
-  chats,
-  characters,
-  activeChatId,
-  onSelect,
-  onNew,
-  onRequestDelete,
-  onOpenSettings,
-  onOpenCards,
-}: ChatListProps) {
-  const [query, setQuery] = useState('');
-  const sorted = useMemo(() => [...chats].sort((a, b) => b.updatedAt - a.updatedAt), [chats]);
-  const filtered = useMemo(() => {
-    const q = query.trim().toLocaleLowerCase();
-    if (!q) return sorted;
-    return sorted.filter((chat) => {
-      const name = characters.find((c) => c.id === chat.characterId)?.name ?? '';
-      return chat.title.toLocaleLowerCase().includes(q) || name.toLocaleLowerCase().includes(q);
-    });
-  }, [sorted, characters, query]);
-
-  return (
-    <aside className="panel chat-list-panel">
-      <div className="brand">
-        <div className="brand-mark">
-          <IconSparkles width={20} height={20} />
-        </div>
-        <div className="brand-text">
-          <div className="brand-title">轻语酒馆</div>
-          <div className="brand-sub">LiteTavern</div>
-        </div>
-        <button className="icon-btn" onClick={onOpenSettings} title="设置" aria-label="设置">
-          <IconSettings />
-        </button>
-      </div>
-
-      <button className="new-chat-btn" onClick={onNew}>
-        <IconPlus width={17} height={17} />
-        新对话
-      </button>
-
-      <div className="list-search">
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="搜索对话…"
-          aria-label="搜索对话"
-        />
-      </div>
-
-      <div className="list-scroll">
-        {filtered.length === 0 ? (
-          <div className="panel-empty">
-            <IconSparkles width={26} height={26} />
-            <p>{chats.length === 0 ? '还没有任何对话' : '没有匹配的对话'}</p>
-            <button className="btn btn-small btn-ghost" onClick={onOpenCards}>
-              去选择角色卡
-            </button>
-          </div>
-        ) : (
-          filtered.map((chat) => {
-            const character = characters.find((c) => c.id === chat.characterId);
-            return (
-              <div
-                key={chat.id}
-                className={`chat-item ${chat.id === activeChatId ? 'active' : ''}`}
-                onClick={() => onSelect(chat.id)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => e.key === 'Enter' && onSelect(chat.id)}
-              >
-                <Avatar src={character?.avatar} name={character?.name ?? chat.title} size={42} />
-                <div className="chat-item-main">
-                  <div className="chat-item-top">
-                    <span className="chat-item-name">{character?.name ?? chat.title}</span>
-                    <span className="chat-item-time">{formatTime(chat.updatedAt)}</span>
-                  </div>
-                  <div className="chat-item-bottom">
-                    <span className="chat-item-preview">{lastPreview(chat)}</span>
-                    <button
-                      className="item-delete"
-                      title="删除对话"
-                      aria-label="删除对话"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onRequestDelete(chat);
-                      }}
-                    >
-                      <IconTrash width={14} height={14} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
-
-      <div className="panel-foot">
-        <span>{chats.length} 个对话</span>
-        <span className="dot" />
-        <span>数据仅存本机</span>
-      </div>
-    </aside>
-  );
-}
+import { IconBook, IconChevronRight, IconEdit, IconPlus, IconSparkles, IconTrash } from './Icons';
+import { truncate } from '../lib/util';
 
 interface CharacterRailProps {
   characters: Character[];
@@ -146,7 +19,23 @@ interface CharacterRailProps {
   onCreateWorldBook: (characterId: string) => void;
   onViewWorldBooks: (character: Character) => void;
   onDeleteCharacter: (character: Character) => void;
+  /** Desktop only: hides the panel and leaves a restore handle. */
+  onCollapse?: () => void;
 }
+
+/** Where the card menu is anchored; it lives in a body portal, not in the card. */
+interface MenuPlacement {
+  id: string;
+  left: number;
+  top?: number;
+  bottom?: number;
+  maxHeight: number;
+}
+
+const MENU_WIDTH = 202;
+const MENU_GAP = 6;
+const MENU_EDGE = 8;
+const MENU_ESTIMATED_HEIGHT = 244;
 
 export function CharacterRail({
   characters,
@@ -162,17 +51,72 @@ export function CharacterRail({
   onCreateWorldBook,
   onViewWorldBooks,
   onDeleteCharacter,
+  onCollapse,
 }: CharacterRailProps) {
-  const [menuId, setMenuId] = useState<string | null>(null);
+  const [menu, setMenu] = useState<MenuPlacement | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [worldTarget, setWorldTarget] = useState<string | null>(null);
   const cardInputId = 'card-file-input';
   const worldInputId = 'world-file-input';
 
+  /**
+   * Opens the card menu as a body-level portal.
+   *
+   * It used to be absolutely positioned inside the card with a `.menu-backdrop`
+   * sibling: because `.panel` carries `z-index` (and a backdrop filter), that
+   * backdrop was trapped in the panel's stacking context, so clicks on other
+   * cards went straight through to the cards underneath and the translucent
+   * menu visibly mixed with the card text. A portal puts the menu and its
+   * full-screen backdrop above everything and closes on any outside click.
+   */
+  const openMenu = (event: React.MouseEvent<HTMLButtonElement>, id: string) => {
+    if (menu?.id === id) {
+      setMenu(null);
+      return;
+    }
+    const rect = event.currentTarget.getBoundingClientRect();
+    const left = Math.min(
+      Math.max(MENU_EDGE, rect.right - MENU_WIDTH),
+      window.innerWidth - MENU_WIDTH - MENU_EDGE,
+    );
+    const below = window.innerHeight - rect.bottom - MENU_GAP - MENU_EDGE;
+    const above = rect.top - MENU_GAP - MENU_EDGE;
+    const openUp = below < MENU_ESTIMATED_HEIGHT && above > below;
+    setMenu({
+      id,
+      left,
+      maxHeight: Math.max(160, openUp ? above : below),
+      ...(openUp
+        ? { bottom: window.innerHeight - rect.top + MENU_GAP }
+        : { top: rect.bottom + MENU_GAP }),
+    });
+  };
+
+  useEffect(() => {
+    if (!menu) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenu(null);
+    };
+    const onViewportChange = () => setMenu(null);
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('resize', onViewportChange);
+    // Any scroll (the card list, the chat) moves the anchor: close instead of
+    // tracking a stale position.
+    window.addEventListener('scroll', onViewportChange, true);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', onViewportChange);
+      window.removeEventListener('scroll', onViewportChange, true);
+    };
+  }, [menu]);
+
   const booksOf = (character: Character) =>
     character.worldBookIds
       .map((id) => worldBooks.find((b) => b.id === id))
       .filter((b): b is WorldBook => Boolean(b));
+
+  const menuCharacter = menu ? characters.find((c) => c.id === menu.id) : undefined;
+  const menuBooks = menuCharacter ? booksOf(menuCharacter) : [];
 
   return (
     <aside
@@ -200,6 +144,16 @@ export function CharacterRail({
           <p>{characters.length} 张 · PNG / JSON / 手写</p>
         </div>
         <div className="rail-head-actions">
+          {onCollapse && (
+            <button
+              className="icon-btn collapse-btn desktop-only"
+              onClick={onCollapse}
+              title="收起角色卡列表"
+              aria-label="收起角色卡列表"
+            >
+              <IconChevronRight width={15} height={15} />
+            </button>
+          )}
           <button className="btn btn-small btn-ghost" onClick={onCreateCard} title="手动创建角色卡">
             <IconEdit width={14} height={14} /> 新建
           </button>
@@ -313,9 +267,11 @@ export function CharacterRail({
                     className="icon-btn card-menu-btn"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setMenuId(menuId === character.id ? null : character.id);
+                      openMenu(e, character.id);
                     }}
                     aria-label="角色卡菜单"
+                    aria-haspopup="menu"
+                    aria-expanded={menu?.id === character.id}
                   >
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
                       <circle cx="5" cy="12" r="1.4" />
@@ -323,66 +279,6 @@ export function CharacterRail({
                       <circle cx="19" cy="12" r="1.4" />
                     </svg>
                   </button>
-
-                  {menuId === character.id && (
-                    <>
-                      <div className="menu-backdrop" onClick={() => setMenuId(null)} />
-                      <div className="card-menu" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={() => {
-                            setMenuId(null);
-                            onNewChat(character.id);
-                          }}
-                        >
-                          <IconPlus width={15} height={15} /> 新对话
-                        </button>
-                        <button
-                          onClick={() => {
-                            setMenuId(null);
-                            onEditCard(character);
-                          }}
-                        >
-                          <IconEdit width={15} height={15} /> 编辑角色卡
-                        </button>
-                        <button
-                          onClick={() => {
-                            setMenuId(null);
-                            onCreateWorldBook(character.id);
-                          }}
-                        >
-                          <IconPlus width={15} height={15} /> 新建世界书
-                        </button>
-                        <button
-                          onClick={() => {
-                            setWorldTarget(character.id);
-                            setMenuId(null);
-                            document.getElementById(worldInputId)?.click();
-                          }}
-                        >
-                          <IconBook width={15} height={15} /> 导入 / 替换世界书
-                        </button>
-                        <button
-                          disabled={books.length === 0}
-                          onClick={() => {
-                            setMenuId(null);
-                            onViewWorldBooks(character);
-                          }}
-                        >
-                          <IconSparkles width={15} height={15} /> 查看世界书
-                        </button>
-                        <div className="menu-sep" />
-                        <button
-                          className="danger"
-                          onClick={() => {
-                            setMenuId(null);
-                            onDeleteCharacter(character);
-                          }}
-                        >
-                          <IconTrash width={15} height={15} /> 删除角色卡
-                        </button>
-                      </div>
-                    </>
-                  )}
                 </div>
               );
             })
@@ -407,6 +303,86 @@ export function CharacterRail({
           setWorldTarget(null);
         }}
       />
+
+      {menu &&
+        menuCharacter &&
+        createPortal(
+          <>
+            <div className="card-menu-backdrop" onMouseDown={() => setMenu(null)} />
+            <div
+              className="card-menu"
+              role="menu"
+              aria-label={`${menuCharacter.name} 的操作`}
+              style={{
+                left: menu.left,
+                width: MENU_WIDTH,
+                maxHeight: menu.maxHeight,
+                ...(menu.top !== undefined ? { top: menu.top } : { bottom: menu.bottom }),
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <button
+                role="menuitem"
+                onClick={() => {
+                  setMenu(null);
+                  onNewChat(menuCharacter.id);
+                }}
+              >
+                <IconPlus width={15} height={15} /> 新对话
+              </button>
+              <button
+                role="menuitem"
+                onClick={() => {
+                  setMenu(null);
+                  onEditCard(menuCharacter);
+                }}
+              >
+                <IconEdit width={15} height={15} /> 编辑角色卡
+              </button>
+              <button
+                role="menuitem"
+                onClick={() => {
+                  setMenu(null);
+                  onCreateWorldBook(menuCharacter.id);
+                }}
+              >
+                <IconPlus width={15} height={15} /> 新建世界书
+              </button>
+              <button
+                role="menuitem"
+                onClick={() => {
+                  setMenu(null);
+                  setWorldTarget(menuCharacter.id);
+                  document.getElementById(worldInputId)?.click();
+                }}
+              >
+                <IconBook width={15} height={15} /> 导入 / 替换世界书
+              </button>
+              <button
+                role="menuitem"
+                disabled={menuBooks.length === 0}
+                onClick={() => {
+                  setMenu(null);
+                  onViewWorldBooks(menuCharacter);
+                }}
+              >
+                <IconSparkles width={15} height={15} /> 查看世界书
+              </button>
+              <div className="menu-sep" />
+              <button
+                role="menuitem"
+                className="danger"
+                onClick={() => {
+                  setMenu(null);
+                  onDeleteCharacter(menuCharacter);
+                }}
+              >
+                <IconTrash width={15} height={15} /> 删除角色卡
+              </button>
+            </div>
+          </>,
+          document.body,
+        )}
     </aside>
   );
 }
