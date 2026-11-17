@@ -209,17 +209,17 @@ and the provider console is the source of truth. **Fetch latest models** asks th
 provider (`GET {Base URL}/models`) for what your key can really use and filters
 out embeddings, rerankers and image/audio models.
 
-| Provider                 | Base URL                                            | Example models                                                          |
-| ------------------------ | --------------------------------------------------- | ----------------------------------------------------------------------- |
-| DeepSeek                 | `https://api.deepseek.com`                          | `deepseek-flash` (V4.1) / `deepseek-v4-pro`                             |
-| Qwen (Alibaba DashScope) | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen4-max` / `qwen3.7-plus` / `qwen3.8-flash` / `qwen-plus-character`  |
-| Zhipu GLM                | `https://open.bigmodel.cn/api/paas/v4`              | `glm-5.3` / `glm-5.3-flash` / `glm-5.3-flashx`                          |
-| Kimi (Moonshot)          | `https://api.moonshot.cn/v1`                        | `kimi-k3.1-pro` / `kimi-k3.1-pro-highspeed` / `kimi-k3`                 |
-| ERNIE (Baidu Qianfan)    | `https://qianfan.baidubce.com/v2`                   | `ernie-5.1` / `ernie-5.0` / `ernie-x1.1`                                |
-| Tencent Hunyuan          | `https://api.hunyuan.cloud.tencent.com/v1`          | `hunyuan-a13b` / `hunyuan-role-latest` / `hunyuan-turbos-latest`        |
-| Doubao (Volcengine Ark)  | `https://ark.cn-beijing.volces.com/api/v3`          | `doubao-seed-evolving` / `doubao-seed-2-1-pro-260915` (or an `ep-…`)    |
-| SiliconFlow              | `https://api.siliconflow.cn/v1`                     | `deepseek-ai/DeepSeek-V4-Pro` / `deepseek-ai/DeepSeek-V4.1-Flash`       |
-| Custom                   | any OpenAI-compatible URL                           | per your provider                                                       |
+| Provider                 | Base URL                                            | Example models                                                         |
+| ------------------------ | --------------------------------------------------- | ---------------------------------------------------------------------- |
+| DeepSeek                 | `https://api.deepseek.com`                          | `deepseek-flash` (V4.1) / `deepseek-v4-pro`                            |
+| Qwen (Alibaba DashScope) | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen4-max` / `qwen3.7-plus` / `qwen3.8-flash` / `qwen-plus-character` |
+| Zhipu GLM                | `https://open.bigmodel.cn/api/paas/v4`              | `glm-5.3` / `glm-5.3-flash` / `glm-5.3-flashx`                         |
+| Kimi (Moonshot)          | `https://api.moonshot.cn/v1`                        | `kimi-k3.1-pro` / `kimi-k3.1-pro-highspeed` / `kimi-k3`                |
+| ERNIE (Baidu Qianfan)    | `https://qianfan.baidubce.com/v2`                   | `ernie-5.1` / `ernie-5.0` / `ernie-x1.1`                               |
+| Tencent Hunyuan          | `https://api.hunyuan.cloud.tencent.com/v1`          | `hunyuan-a13b` / `hunyuan-role-latest` / `hunyuan-turbos-latest`       |
+| Doubao (Volcengine Ark)  | `https://ark.cn-beijing.volces.com/api/v3`          | `doubao-seed-evolving` / `doubao-seed-2-1-pro-260915` (or an `ep-…`)   |
+| SiliconFlow              | `https://api.siliconflow.cn/v1`                     | `deepseek-ai/DeepSeek-V4-Pro` / `deepseek-ai/DeepSeek-V4.1-Flash`      |
+| Custom                   | any OpenAI-compatible URL                           | per your provider                                                      |
 
 > Model ids move fast: DeepSeek retired `deepseek-chat` / `deepseek-reasoner` on
 > 2026-07-24, and 1.6.4 migrates a saved alias to `deepseek-flash` on launch.

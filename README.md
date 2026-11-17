@@ -50,9 +50,9 @@
 | --------------------- | -------------------- | ------------------------------ |
 | ![](docs/welcome.png) | ![](docs/backup.png) | ![](docs/worldbook-editor.png) |
 
-| 对话设置（1.6.4）            |
-| ---------------------------- |
-| ![](docs/chat-settings.png)  |
+| 对话设置（1.6.4）           |
+| --------------------------- |
+| ![](docs/chat-settings.png) |
 
 <p align="center">
   <img src="docs/mobile.png" width="300" alt="手机端聊天" />
@@ -153,14 +153,14 @@ git commit -am "release: 1.5.0" && git tag v1.5.0 && git push origin main --tags
 
 | 服务商                 | Base URL                                            | 当前模型示例                                                             |
 | ---------------------- | --------------------------------------------------- | ------------------------------------------------------------------------ |
-| DeepSeek               | `https://api.deepseek.com`                          | `deepseek-flash`（V4.1）/ `deepseek-v4-pro`                               |
-| 通义千问（阿里云百炼） | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen4-max` / `qwen3.7-plus` / `qwen3.8-flash` / `qwen-plus-character`     |
-| 智谱 GLM               | `https://open.bigmodel.cn/api/paas/v4`              | `glm-5.3` / `glm-5.3-flash` / `glm-5.3-flashx`                            |
-| Kimi（月之暗面）       | `https://api.moonshot.cn/v1`                        | `kimi-k3.1-pro` / `kimi-k3.1-pro-highspeed` / `kimi-k3`                    |
-| 文心一言（百度千帆）   | `https://qianfan.baidubce.com/v2`                   | `ernie-5.1` / `ernie-5.0` / `ernie-x1.1`                                  |
-| 腾讯混元               | `https://api.hunyuan.cloud.tencent.com/v1`          | `hunyuan-a13b` / `hunyuan-role-latest` / `hunyuan-turbos-latest`           |
-| 豆包（火山方舟）       | `https://ark.cn-beijing.volces.com/api/v3`          | `doubao-seed-evolving` / `doubao-seed-2-1-pro-260915`（或接入点 `ep-…`）  |
-| 硅基流动               | `https://api.siliconflow.cn/v1`                     | `deepseek-ai/DeepSeek-V4-Pro` / `deepseek-ai/DeepSeek-V4.1-Flash`          |
+| DeepSeek               | `https://api.deepseek.com`                          | `deepseek-flash`（V4.1）/ `deepseek-v4-pro`                              |
+| 通义千问（阿里云百炼） | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen4-max` / `qwen3.7-plus` / `qwen3.8-flash` / `qwen-plus-character`   |
+| 智谱 GLM               | `https://open.bigmodel.cn/api/paas/v4`              | `glm-5.3` / `glm-5.3-flash` / `glm-5.3-flashx`                           |
+| Kimi（月之暗面）       | `https://api.moonshot.cn/v1`                        | `kimi-k3.1-pro` / `kimi-k3.1-pro-highspeed` / `kimi-k3`                  |
+| 文心一言（百度千帆）   | `https://qianfan.baidubce.com/v2`                   | `ernie-5.1` / `ernie-5.0` / `ernie-x1.1`                                 |
+| 腾讯混元               | `https://api.hunyuan.cloud.tencent.com/v1`          | `hunyuan-a13b` / `hunyuan-role-latest` / `hunyuan-turbos-latest`         |
+| 豆包（火山方舟）       | `https://ark.cn-beijing.volces.com/api/v3`          | `doubao-seed-evolving` / `doubao-seed-2-1-pro-260915`（或接入点 `ep-…`） |
+| 硅基流动               | `https://api.siliconflow.cn/v1`                     | `deepseek-ai/DeepSeek-V4-Pro` / `deepseek-ai/DeepSeek-V4.1-Flash`        |
 | 自定义                 | 任意 OpenAI 兼容地址                                | 以服务商文档为准                                                         |
 
 > 模型 ID 变动很快：DeepSeek 的 `deepseek-chat` / `deepseek-reasoner` 已于 2026-07-24 停用，
