@@ -35,11 +35,20 @@ async function importCard(page: Page, file = CARD) {
 /** Opens the custom model picker, searches and confirms a model id. */
 async function chooseModel(page: Page, model: string) {
   await page.locator('#model').click();
-  const search = page.locator('.model-picker-search input');
+  const search = page.locator('.dropdown-search input');
   await expect(search).toBeVisible();
   await search.fill(model);
   await search.press('Enter');
   await expect(page.locator('#model')).toContainText(model);
+}
+
+/** Picks a provider in the custom dropdown; the native <select> is gone. */
+async function chooseProvider(page: Page, label: string) {
+  await page.locator('#provider').click();
+  const panel = page.locator('.dropdown-panel');
+  await expect(panel).toBeVisible();
+  await page.locator('.dropdown-option', { hasText: label }).first().click();
+  await expect(panel).toHaveCount(0);
 }
 
 async function configureApi(page: Page, baseUrl = 'http://127.0.0.1:8787/v1') {
@@ -101,7 +110,7 @@ test.describe('desktop', () => {
     await expect(page.locator('.brand-title')).toBeVisible();
     await page.locator('.brand .icon-btn').click();
 
-    await page.selectOption('#provider', 'qwen');
+    await chooseProvider(page, '通义千问');
     await expect(page.locator('#base-url')).toHaveValue(
       'https://dashscope.aliyuncs.com/compatible-mode/v1',
     );
@@ -109,20 +118,20 @@ test.describe('desktop', () => {
     await page.locator('#api-key').fill('sk-qwen');
     await page.locator('#base-url').click(); // blur the key so it is remembered
 
-    await page.selectOption('#provider', 'deepseek');
+    await chooseProvider(page, 'DeepSeek');
     await expect(page.locator('#base-url')).toHaveValue('https://api.deepseek.com');
     await expect(page.locator('#model')).toContainText('deepseek-flash');
     await expect(page.locator('#api-key')).toHaveValue('');
     await page.locator('#api-key').fill('sk-deepseek');
     await page.locator('#base-url').click();
 
-    await page.selectOption('#provider', 'qwen');
+    await chooseProvider(page, '通义千问');
     await expect(page.locator('#api-key')).toHaveValue('sk-qwen');
-    await page.selectOption('#provider', 'deepseek');
+    await chooseProvider(page, 'DeepSeek');
     await expect(page.locator('#api-key')).toHaveValue('sk-deepseek');
 
-    await page.selectOption('#provider', 'custom');
-    await expect(page.locator('#provider')).toHaveValue('custom');
+    await chooseProvider(page, '自定义');
+    await expect(page.locator('#provider')).toContainText('自定义');
     await expect(page.locator('#base-url')).toHaveValue('https://api.deepseek.com');
 
     await page.getByRole('button', { name: '保存设置' }).click();
@@ -138,20 +147,20 @@ test.describe('desktop', () => {
 
     // The panel is our own, so it can be styled and survive inside the modal.
     await page.locator('#model').click();
-    await expect(page.locator('.model-picker-panel')).toBeVisible();
-    await page.locator('.model-picker-search input').fill('v4-pro');
-    await expect(page.locator('.model-option:not(.custom)')).toHaveCount(1);
-    await page.locator('.model-option:not(.custom)').first().click();
-    await expect(page.locator('.model-picker-panel')).toHaveCount(0);
+    await expect(page.locator('.dropdown-panel')).toBeVisible();
+    await page.locator('.dropdown-search input').fill('v4-pro');
+    await expect(page.locator('.dropdown-option:not(.custom)')).toHaveCount(1);
+    await page.locator('.dropdown-option:not(.custom)').first().click();
+    await expect(page.locator('.dropdown-panel')).toHaveCount(0);
     await expect(page.locator('#model')).toContainText('deepseek-v4-pro');
 
     // 获取最新模型 hits GET {baseUrl}/models (the mock answers with two ids).
     await page.getByRole('button', { name: '获取最新模型' }).click();
     await expect(page.locator('.settings-section').first()).toContainText('已获取 2 个模型');
     await page.locator('#model').click();
-    await expect(page.locator('.model-option:not(.custom)')).toHaveCount(2);
+    await expect(page.locator('.dropdown-option:not(.custom)')).toHaveCount(2);
     await page.keyboard.press('Escape');
-    await expect(page.locator('.model-picker-panel')).toHaveCount(0);
+    await expect(page.locator('.dropdown-panel')).toHaveCount(0);
   });
 
   test('imports a card, auto-mounts its world book, chats and persists', async ({ page }) => {

@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   --bg: #0d0b11;
   --bg-soft: #13101a;
   --panel: rgba(28, 24, 36, 0.82);
@@ -2515,7 +2515,7 @@ a:hover {
   line-height: 1.6;
 }
 
-/* Message variants (閰掗 swipe) + inline editor */
+/* Message variants (酒馆 swipe) + inline editor */
 .swipe-controls {
   display: inline-flex;
   align-items: center;
@@ -3924,7 +3924,7 @@ button:focus-visible {
   }
 }
 
-/* Settings 鈫?About & updates */
+/* Settings → About & updates */
 .update-row {
   display: flex;
   align-items: center;
@@ -3993,7 +3993,7 @@ button:focus-visible {
 /* ---------- Android edge-to-edge ----------
    The Android shell draws the page behind the status and navigation bars and
    publishes their sizes as --safe-* (see src/lib/systemBars.ts). Padding the
-   shell 鈥?not the window 鈥?keeps the aurora background under the bars, so the
+   shell — not the window — keeps the aurora background under the bars, so the
    app colour reaches the screen edges instead of leaving a black strip. On
    desktop and in a browser the variables are unset and this is a no-op. */
 .app {
@@ -4039,7 +4039,7 @@ button:focus-visible {
 }
 
 /* ---------- model picker ---------- */
-.model-picker-trigger {
+.dropdown-trigger {
   width: 100%;
   min-height: 34px;
   display: flex;
@@ -4059,21 +4059,21 @@ button:focus-visible {
     background 0.16s ease;
 }
 
-.model-picker-trigger:hover {
+.dropdown-trigger:hover {
   border-color: rgba(242, 198, 143, 0.34);
   background: var(--tint);
 }
 
-.model-picker-trigger.open {
+.dropdown-trigger.open {
   border-color: rgba(242, 198, 143, 0.55);
   background: var(--tint);
 }
 
-.model-picker-trigger.empty .model-picker-value {
+.dropdown-trigger.empty .dropdown-value {
   color: var(--muted-2);
 }
 
-.model-picker-value {
+.dropdown-value {
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -4082,7 +4082,7 @@ button:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
-.model-picker-hint {
+.dropdown-hint {
   flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
@@ -4092,7 +4092,7 @@ button:focus-visible {
   font-size: 11px;
 }
 
-.model-picker-chevron {
+.dropdown-chevron {
   flex: 0 0 auto;
   color: var(--muted-2);
   font-size: 12px;
@@ -4100,11 +4100,11 @@ button:focus-visible {
   transition: transform 0.16s ease;
 }
 
-.model-picker-trigger.open .model-picker-chevron {
+.dropdown-trigger.open .dropdown-chevron {
   transform: rotate(180deg);
 }
 
-.model-picker-panel {
+.dropdown-panel {
   position: fixed;
   z-index: 4000;
   display: flex;
@@ -4120,7 +4120,7 @@ button:focus-visible {
   animation: toast-in 0.14s ease-out;
 }
 
-.model-picker-search {
+.dropdown-search {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -4132,7 +4132,7 @@ button:focus-visible {
   color: var(--muted-2);
 }
 
-.model-picker-search input {
+.dropdown-search input {
   flex: 1;
   min-width: 0;
   border: 0;
@@ -4143,11 +4143,11 @@ button:focus-visible {
   outline: none;
 }
 
-.model-picker-search input::placeholder {
+.dropdown-search input::placeholder {
   color: var(--muted-2);
 }
 
-.model-picker-list {
+.dropdown-list {
   flex: 1;
   min-height: 0;
   overflow: auto;
@@ -4157,7 +4157,7 @@ button:focus-visible {
   gap: 2px;
 }
 
-.model-option {
+.dropdown-option {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -4172,23 +4172,23 @@ button:focus-visible {
   cursor: pointer;
 }
 
-.model-option.active {
+.dropdown-option.active {
   background: var(--tint);
   border-color: var(--line-soft);
 }
 
-.model-option.selected {
+.dropdown-option.selected {
   color: var(--text);
   border-color: rgba(242, 198, 143, 0.28);
   background: var(--accent-soft);
 }
 
-.model-option.custom {
+.dropdown-option.custom {
   border-style: dashed;
   border-color: var(--line);
 }
 
-.model-option-main {
+.dropdown-option-main {
   flex: 1;
   min-width: 0;
   display: flex;
@@ -4196,7 +4196,7 @@ button:focus-visible {
   gap: 1px;
 }
 
-.model-option-id {
+.dropdown-option-value {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -4204,7 +4204,7 @@ button:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
-.model-option-label {
+.dropdown-option-hint {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -4212,14 +4212,14 @@ button:focus-visible {
   font-size: 10.5px;
 }
 
-.model-picker-empty {
+.dropdown-empty {
   padding: 12px 10px;
   color: var(--muted-2);
   font-size: 11.5px;
   line-height: 1.6;
 }
 
-.model-picker-foot {
+.dropdown-foot {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
@@ -4368,11 +4368,11 @@ button:focus-visible {
 }
 
 @media (max-width: 760px) {
-  .model-picker-panel {
+  .dropdown-panel {
     z-index: 4000;
   }
 
-  .model-picker-hint {
+  .dropdown-hint {
     display: none;
   }
 
@@ -4432,7 +4432,7 @@ button:focus-visible {
 .update-notes.markdown p {
   margin: 4px 0;
 }
-/* Two actions on one line under the model fields: 娴嬭瘯杩炴帴 + 鑾峰彇鏈€鏂版ā鍨? */
+/* Two actions on one line under the model fields: 测试连接 + 获取最新模型 */
 .test-row {
   row-gap: 8px;
 }

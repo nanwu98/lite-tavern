@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Modal } from './Modal';
 import { ModelPicker } from './ModelPicker';
+import { Dropdown } from './Dropdown';
 import { useStore } from '../store';
 import { DEFAULT_SETTINGS } from '../defaults';
 import type { ProviderId, Settings } from '../types';
@@ -268,25 +269,25 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
           <div className="field-row">
             <div className="field">
               <label htmlFor="provider">服务商</label>
-              <select
+              <Dropdown
                 id="provider"
                 value={draft.provider}
-                onChange={(e) => {
-                  const next = applyProviderSelection(draft, e.target.value as ProviderId);
-                  apiKeyRef.current = next.apiKey;
-                  setDraft(next);
-                  setLiveModels(liveModelCache.get(next.provider) ?? []);
+                options={PROVIDERS.map((provider) => ({
+                  value: provider.id,
+                  label: provider.label,
+                  hint: provider.hint,
+                }))}
+                onChange={(next) => {
+                  const applied = applyProviderSelection(draft, next as ProviderId);
+                  apiKeyRef.current = applied.apiKey;
+                  setDraft(applied);
+                  setLiveModels(liveModelCache.get(applied.provider) ?? []);
                   setFetchError('');
                   setTestResult(null);
                 }}
-              >
-                {PROVIDERS.map((provider) => (
-                  <option key={provider.id} value={provider.id}>
-                    {provider.label}
-                    {provider.hint ? ` · ${provider.hint}` : ''}
-                  </option>
-                ))}
-              </select>
+                placeholder="选择服务商"
+                ariaLabel="服务商列表"
+              />
               <p className="field-hint">切换服务商会自动填入接口地址、常用模型和上次用过的 Key。</p>
             </div>
             <div className="field">

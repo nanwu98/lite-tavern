@@ -19,9 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
-- **模型下拉框重做**：换成应用内自绘的选择器（可搜索、方向键上下选择、回车确认、
-  仍可手输任意模型名），不再使用浏览器原生 `<datalist>`——原生弹层样式与界面不搭，
-  在 Android WebView 上还经常弹不出来或被键盘挡住。弹层按可视区域自动上下翻转，不会被弹窗裁掉。
+- **下拉框整体重做**：服务商与模型都换成应用内自绘的选择器（可搜索、方向键上下选择、
+  回车确认、模型仍可手输任意 ID），不再使用浏览器原生 `<select>` / `<datalist>`——
+  原生控件样式与界面不搭，在 Android WebView 上还经常弹不出来或被键盘挡住。
+  弹层按可视区域自动上下翻转，不会被弹窗裁掉；两项控件的高度、圆角、悬停与选中态一致。
 - **内置模型清单更新到 2026-11-17**：DeepSeek 改为 `deepseek-flash` / `deepseek-v4-pro`
   （`deepseek-chat`、`deepseek-reasoner` 已于 2026-07-24 停用），并同步千问、智谱、
   Kimi、文心、混元、豆包、硅基流动的最新主力模型，标注了各家为角色扮演调过的专用模型
