@@ -132,8 +132,25 @@ export interface Chat {
 
 export type ThemeMode = 'system' | 'dark' | 'light';
 
+/** A preset in the model-provider picker; `custom` is any OpenAI-compatible URL. */
+export type ProviderId =
+  | 'deepseek'
+  | 'qwen'
+  | 'zhipu'
+  | 'moonshot'
+  | 'qianfan'
+  | 'hunyuan'
+  | 'ark'
+  | 'siliconflow'
+  | 'custom';
+
 export interface Settings {
+  /** Selected provider preset; drives the Base URL / model defaults. */
+  provider: ProviderId;
+  /** Key of the selected provider (mirrors `apiKeys[provider]`). */
   apiKey: string;
+  /** One key per provider, so switching back and forth keeps them. */
+  apiKeys: Record<string, string>;
   baseUrl: string;
   model: string;
   temperature: number;

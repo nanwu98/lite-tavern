@@ -24,7 +24,7 @@
 
 - 左侧对话列表，中间聊天，右侧角色卡。
 - 数据全部保存在本机；API Key 只存在本机，只发送到你填写的接口地址。
-- 内置 DeepSeek 兼容的流式客户端，也可以接任何 OpenAI 兼容接口。
+- 内置流式客户端，支持 DeepSeek、通义千问、智谱、Kimi、文心、混元、豆包、硅基流动等 OpenAI 兼容服务，也能接自建网关。
 
 ## 功能
 
@@ -37,7 +37,7 @@
 - **应用内更新（1.5.0 起）**：设置 → **关于与更新** 一键检查新版本，显示更新说明与安装包大小；下载后先用清单里的 SHA-256 校验再安装——Windows 会替换启动器并自动重启，Android 会调起系统安装器（需要你确认一次）。
 - **外观**：深色 / 亮色 / 跟随系统，「暖暮柔光玻璃」界面：分层极光背景、磨砂面板、柔和光晕与克制的入场动效；低配 WebView 会自动退回不透明的实色面板。
 - **老板键（桌面版）**：自定义全局快捷键，一键隐藏 / 恢复窗口。
-- **模型**：DeepSeek 或任意 OpenAI 兼容服务，流式输出、温度、上下文长度、世界书预算可调。
+- **模型服务（1.6.0 起）**：下拉选择服务商，自动填好 Base URL、常用模型、上下文窗口和申请 Key 的页面；每个服务商的 Key 单独保存，切换不丢。也可以用「自定义」接任意 OpenAI 兼容接口。流式输出、温度、上下文长度、世界书预算可调。
 
 ## 截图
 
@@ -124,13 +124,34 @@ git commit -am "release: 1.5.0" && git tag v1.5.0 && git push origin main --tags
 
 ## 使用
 
-1. 打开设置，填写 API Key、Base URL（默认 `https://api.deepseek.com`）和模型名，点「测试连接」后保存。
+1. 打开设置 → **模型服务**，选服务商（或「自定义」填写 Base URL），填 API Key 和模型名，点「测试连接」后保存。
 2. 右侧「导入」选择 PNG / JSON 角色卡，或点「新建」手写一张。
 3. 卡内嵌世界书会自动挂载；也可以在卡片菜单里导入、新建或编辑世界书。
 4. 点角色卡开始聊天。消息下方的 `‹ 1/3 ›` 切换开场或重新生成的版本，铅笔图标编辑历史消息。
 5. 设置里可以切换深色 / 亮色 / 跟随系统；桌面版还能设置老板键。
 6. 启动页（没有选中对话时）会列出全部角色卡，右上角的 **✕** 点一次会弹确认，确认后删除该卡及其对话。
 7. 设置 → 备份与恢复：勾选要备份的内容，导出带时间戳的 JSON；换设备后在同一个入口导入即可。
+
+### 支持的模型服务
+
+<p align="center">
+  <img src="docs/model-service.png" width="680" alt="设置里的「模型服务」" />
+</p>
+
+设置 → 模型服务里是下拉选择，选中后会自动填好 Base URL、模型和申请 Key 的页面；模型名可以手动改，
+以服务商控制台为准。
+
+| 服务商                 | Base URL                                            | 模型示例                                        |
+| ---------------------- | --------------------------------------------------- | ----------------------------------------------- |
+| DeepSeek               | `https://api.deepseek.com`                          | `deepseek-chat` / `deepseek-reasoner`           |
+| 通义千问（阿里云百炼） | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-plus` / `qwen-max`                        |
+| 智谱 GLM               | `https://open.bigmodel.cn/api/paas/v4`              | `glm-4.6` / `glm-4-flash`                       |
+| Kimi（月之暗面）       | `https://api.moonshot.cn/v1`                        | `kimi-k2-0905-preview`                          |
+| 文心一言（百度千帆）   | `https://qianfan.baidubce.com/v2`                   | `ernie-4.5-turbo-128k`                          |
+| 腾讯混元               | `https://api.hunyuan.cloud.tencent.com/v1`          | `hunyuan-turbos-latest`                         |
+| 豆包（火山方舟）       | `https://ark.cn-beijing.volces.com/api/v3`          | `doubao-seed-1-6-250615`（或推理接入点 `ep-…`） |
+| 硅基流动               | `https://api.siliconflow.cn/v1`                     | `deepseek-ai/DeepSeek-V3`                       |
+| 自定义                 | 任意 OpenAI 兼容地址                                | 以服务商文档为准                                |
 
 ### 检查更新
 

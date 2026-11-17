@@ -13,7 +13,15 @@ pkg.version = version;
 pkg.license = 'MIT';
 pkg.author = 'LiteTavern contributors';
 pkg.description = 'A minimal local client for SillyTavern character cards and world books';
-pkg.keywords = ['sillytavern', 'character-card', 'worldbook', 'deepseek', 'electron', 'capacitor'];
+pkg.keywords = [
+  'sillytavern',
+  'character-card',
+  'worldbook',
+  'llm',
+  'openai-compatible',
+  'electron',
+  'capacitor',
+];
 pkg.engines = { node: '>=20' };
 fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
 

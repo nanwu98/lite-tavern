@@ -62,7 +62,8 @@ export function contextErrorMessage(limit?: number): string {
 }
 
 export function normalizeBaseUrl(input: string): string {
-  let base = input.trim() || 'https://api.deepseek.com';
+  let base = (input ?? '').trim();
+  if (!base) throw new ApiError('还没有填写 Base URL，请打开设置选择服务商或填写接口地址。');
   base = base.replace(/\/+$/, '');
   if (!/^https?:\/\//i.test(base)) base = `https://${base}`;
   return base;
@@ -82,7 +83,7 @@ export function modelsEndpoint(baseUrl: string): string {
 
 function headers(settings: Settings): Record<string, string> {
   if (!settings.apiKey.trim())
-    throw new ApiError('还没有填写 API Key，请打开设置填写 DeepSeek 官方 Key。');
+    throw new ApiError('还没有填写 API Key，请打开设置填写所选服务商的 Key。');
   return {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${settings.apiKey.trim()}`,
@@ -93,9 +94,9 @@ function friendlyStatus(status: number, detail: string): string {
   const suffix = detail ? `（${detail}）` : '';
   switch (status) {
     case 401:
-      return 'API Key 无效或已过期，请到 DeepSeek 开放平台重新生成。';
+      return 'API Key 无效或已过期，请到服务商控制台重新生成。';
     case 402:
-      return '账户余额不足，请到 DeepSeek 开放平台充值后再试。';
+      return '账户余额不足，请到服务商控制台充值后再试。';
     case 403:
       return `没有访问权限${suffix}。`;
     case 404:
@@ -103,9 +104,7 @@ function friendlyStatus(status: number, detail: string): string {
     case 429:
       return '请求太频繁或额度受限，请稍后再试。';
     default:
-      return status >= 500
-        ? `DeepSeek 服务暂时不可用${suffix}，请稍后重试。`
-        : `请求失败${suffix}。`;
+      return status >= 500 ? `模型服务暂时不可用${suffix}，请稍后重试。` : `请求失败${suffix}。`;
   }
 }
 
@@ -191,8 +190,10 @@ export async function streamChat(options: StreamOptions): Promise<string> {
   signal?.addEventListener('abort', onExternalAbort, { once: true });
   resetTimer();
 
+  const model = settings.model.trim();
+  if (!model) throw new ApiError('还没有选择模型，请打开设置选择或填写模型名。');
   const body: Record<string, unknown> = {
-    model: settings.model.trim() || 'deepseek-flash',
+    model,
     messages,
     stream: Boolean(settings.stream),
     temperature: settings.temperature,

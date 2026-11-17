@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { Modal } from './Modal';
 import { useStore } from '../store';
 import { DEFAULT_SETTINGS } from '../defaults';
-import type { Settings } from '../types';
+import type { ProviderId, Settings } from '../types';
 import { testConnection } from '../lib/api';
 import { formatLimit } from '../lib/tokens';
+import { PROVIDERS, applyProviderSelection, getProvider, linkLabel } from '../lib/providers';
 import { backupFileName, parseBackup, statsSummary, type BackupPayload } from '../lib/backup';
 import { pickTextFile, saveTextFile } from '../lib/backupFile';
 import { IconAlert, IconArchive, IconCheck, IconCompress, IconSparkles } from './Icons';
@@ -22,6 +23,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const updateSettings = useStore((s) => s.updateSettings);
   const toast = useStore((s) => s.toast);
   const [draft, setDraft] = useState<Settings>(settings);
+  const preset = getProvider(draft.provider);
   const [showKey, setShowKey] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
@@ -75,7 +77,10 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
   const persistKey = () => {
     const apiKey = readApiKey();
-    if (apiKey) updateSettings({ apiKey });
+    if (!apiKey) return;
+    const apiKeys = { ...useStore.getState().settings.apiKeys, [draft.provider]: apiKey };
+    setDraft((d) => ({ ...d, apiKey, apiKeys }));
+    updateSettings({ apiKey, apiKeys });
   };
 
   const handleExport = async () => {
@@ -143,6 +148,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
     updateSettings({
       ...draft,
       apiKey,
+      apiKeys: { ...draft.apiKeys, [draft.provider]: apiKey },
       baseUrl,
       model,
       bossKey: draft.bossKey.trim() || DEFAULT_SETTINGS.bossKey,
@@ -174,7 +180,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
     if (result.ok) {
       // Persist the key as soon as it is proven valid, so an Android WebView
       // field reset or an accidental close can never lose it again.
-      updateSettings({ apiKey });
+      updateSettings({ apiKey, apiKeys: { ...draft.apiKeys, [draft.provider]: apiKey } });
     }
   };
 
@@ -182,7 +188,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
     <Modal
       open={open}
       title="设置"
-      subtitle="连接 DeepSeek，调整角色扮演与上下文参数"
+      subtitle="配置模型服务，调整角色扮演与上下文参数"
       onClose={onClose}
       width={720}
       className="settings-modal"
@@ -200,22 +206,75 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
       <div className="settings-scroll">
         <section className="settings-section">
           <div className="section-title">
-            <IconSparkles width={16} height={16} /> DeepSeek 连接
+            <IconSparkles width={16} height={16} /> 模型服务
           </div>
+          <div className="field-row">
+            <div className="field">
+              <label htmlFor="provider">服务商</label>
+              <select
+                id="provider"
+                value={draft.provider}
+                onChange={(e) => {
+                  const next = applyProviderSelection(draft, e.target.value as ProviderId);
+                  apiKeyRef.current = next.apiKey;
+                  setDraft(next);
+                }}
+              >
+                {PROVIDERS.map((provider) => (
+                  <option key={provider.id} value={provider.id}>
+                    {provider.label}
+                    {provider.hint ? ` · ${provider.hint}` : ''}
+                  </option>
+                ))}
+              </select>
+              <p className="field-hint">切换服务商会自动填入接口地址、常用模型和上次用过的 Key。</p>
+            </div>
+            <div className="field">
+              <label htmlFor="model">模型</label>
+              <input
+                id="model"
+                value={draft.model}
+                onChange={(e) => patch({ model: e.target.value })}
+                list="model-options"
+                placeholder={preset.models[0]?.id ?? '模型名'}
+                spellCheck={false}
+              />
+              <datalist id="model-options">
+                {preset.models.map((item) => (
+                  <option key={item.id} value={item.id} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+          {preset.models.length > 0 && (
+            <div className="quick-models">
+              {preset.models.slice(0, 4).map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`chip ${draft.model === item.id ? 'active' : ''}`}
+                  onClick={() => patch({ model: item.id })}
+                >
+                  {item.id}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="field">
             <label htmlFor="api-key">API Key</label>
             <div className="input-with-action">
               <input
+                key={draft.provider}
                 ref={apiKeyInputRef}
                 id="api-key"
                 type="text"
                 className={showKey ? '' : 'secret-input'}
-                defaultValue={settings.apiKey}
+                defaultValue={draft.apiKey}
                 onChange={(e) => {
                   apiKeyRef.current = e.target.value;
                 }}
                 onBlur={persistKey}
-                placeholder="sk-..."
+                placeholder={preset.id === 'custom' ? '服务商提供的 API Key' : 'sk-...'}
                 autoComplete="off"
                 autoCapitalize="none"
                 autoCorrect="off"
@@ -227,54 +286,30 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               </button>
             </div>
             <p className="field-hint">
-              到{' '}
-              <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noreferrer">
-                platform.deepseek.com/api_keys
-              </a>{' '}
-              创建，Key 只显示一次。它仅保存在本机，不会上传到别处。
+              {preset.keyUrl ? (
+                <>
+                  到{' '}
+                  <a href={preset.keyUrl} target="_blank" rel="noreferrer">
+                    {linkLabel(preset.keyUrl)}
+                  </a>{' '}
+                  创建，Key 通常只显示一次。
+                </>
+              ) : (
+                '填写服务商或中转站提供的 API Key。'
+              )}
+              它仅保存在本机，不会上传到别处。
             </p>
           </div>
-          <div className="field-row">
-            <div className="field">
-              <label htmlFor="base-url">Base URL</label>
-              <input
-                id="base-url"
-                value={draft.baseUrl}
-                onChange={(e) => patch({ baseUrl: e.target.value })}
-                placeholder="https://api.deepseek.com"
-                spellCheck={false}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="model">模型</label>
-              <input
-                id="model"
-                value={draft.model}
-                onChange={(e) => patch({ model: e.target.value })}
-                list="model-options"
-                placeholder="deepseek-flash"
-                spellCheck={false}
-              />
-              <datalist id="model-options">
-                <option value="deepseek-flash" />
-                <option value="deepseek-v4-pro" />
-                <option value="deepseek-chat" />
-                <option value="deepseek-reasoner" />
-              </datalist>
-            </div>
-          </div>
-          <div className="quick-models">
-            {['deepseek-flash', 'deepseek-v4-pro'].map((model) => (
-              <button
-                key={model}
-                type="button"
-                className={`chip ${draft.model === model ? 'active' : ''}`}
-                onClick={() => patch({ model })}
-              >
-                {model}
-                {model === 'deepseek-flash' && <span className="chip-hint">推荐</span>}
-              </button>
-            ))}
+          <div className="field">
+            <label htmlFor="base-url">Base URL（OpenAI 兼容接口）</label>
+            <input
+              id="base-url"
+              value={draft.baseUrl}
+              onChange={(e) => patch({ baseUrl: e.target.value })}
+              placeholder="https://example.com/v1"
+              spellCheck={false}
+            />
+            <p className="field-hint">选择服务商会自动填入；用中转站或自建网关时直接改这里。</p>
           </div>
           <div className="test-row">
             <button
@@ -296,12 +331,18 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               </span>
             )}
           </div>
+          {preset.note && <p className="field-hint">{preset.note}</p>}
           <p className="field-hint">
-            官方文档：
-            <a href="https://api-docs.deepseek.com/zh-cn/" target="_blank" rel="noreferrer">
-              api-docs.deepseek.com
-            </a>
-            。 模型名以官方文档为准；旧版 deepseek-chat 仍可手动填写。
+            {preset.docsUrl && (
+              <>
+                接口文档：
+                <a href={preset.docsUrl} target="_blank" rel="noreferrer">
+                  {linkLabel(preset.docsUrl)}
+                </a>
+                。
+              </>
+            )}
+            模型名以服务商控制台为准，也可以直接手动填写。
           </p>
         </section>
 
@@ -445,9 +486,8 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               ))}
             </div>
             <p className="settings-hint">
-              按模型的上下文窗口填写，以 DeepSeek
-              官方文档为准。压缩会把最早的一批消息交给模型总结成一段长期记忆， 之后只发送「记忆 +
-              最近几条消息」；摘要会随对话不断合并更新，老剧情不会丢。
+              按模型的上下文窗口填写，以服务商文档为准。压缩会把最早的一批消息交给模型总结成一段长期记忆，
+              之后只发送「记忆 + 最近几条消息」；摘要会随对话不断合并更新，老剧情不会丢。
             </p>
             <p className="settings-hint">
               关掉自动压缩也不会丢消息：真正撞到上下文上限时，对话里会出现「一键压缩上下文并继续对话」按钮，

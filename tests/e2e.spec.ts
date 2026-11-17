@@ -86,6 +86,37 @@ test.describe('desktop', () => {
     await expect(page.locator('#api-key')).toHaveValue('sk-test-key-123');
   });
 
+  test('switches model providers and remembers a key for each', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('.brand-title')).toBeVisible();
+    await page.locator('.brand .icon-btn').click();
+
+    await page.selectOption('#provider', 'qwen');
+    await expect(page.locator('#base-url')).toHaveValue(
+      'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    );
+    await expect(page.locator('#model')).toHaveValue('qwen-plus');
+    await page.locator('#api-key').fill('sk-qwen');
+    await page.locator('#model').click(); // blur the key so it is remembered
+
+    await page.selectOption('#provider', 'deepseek');
+    await expect(page.locator('#base-url')).toHaveValue('https://api.deepseek.com');
+    await expect(page.locator('#api-key')).toHaveValue('');
+    await page.locator('#api-key').fill('sk-deepseek');
+    await page.locator('#model').click();
+
+    await page.selectOption('#provider', 'qwen');
+    await expect(page.locator('#api-key')).toHaveValue('sk-qwen');
+    await page.selectOption('#provider', 'deepseek');
+    await expect(page.locator('#api-key')).toHaveValue('sk-deepseek');
+
+    await page.selectOption('#provider', 'custom');
+    await expect(page.locator('#provider')).toHaveValue('custom');
+    await expect(page.locator('#base-url')).toHaveValue('https://api.deepseek.com');
+
+    await page.getByRole('button', { name: '保存设置' }).click();
+  });
+
   test('imports a card, auto-mounts its world book, chats and persists', async ({ page }) => {
     await importCard(page);
     await configureApi(page);

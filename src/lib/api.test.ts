@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { ApiError, chatEndpoint, contextErrorMessage, detectContextOverflow } from './api';
+import {
+  ApiError,
+  chatEndpoint,
+  contextErrorMessage,
+  detectContextOverflow,
+  normalizeBaseUrl,
+} from './api';
 
 describe('context overflow detection', () => {
   it('recognises the provider wording and extracts the window size', () => {
@@ -39,12 +45,17 @@ describe('context overflow detection', () => {
 
 describe('endpoint helpers', () => {
   it('accepts a base URL with or without the chat path', () => {
-    expect(chatEndpoint('https://api.deepseek.com')).toBe(
-      'https://api.deepseek.com/chat/completions',
+    expect(chatEndpoint('https://api.example.com')).toBe(
+      'https://api.example.com/chat/completions',
     );
-    expect(chatEndpoint('https://api.deepseek.com/chat/completions')).toBe(
-      'https://api.deepseek.com/chat/completions',
+    expect(chatEndpoint('https://api.example.com/chat/completions')).toBe(
+      'https://api.example.com/chat/completions',
     );
     expect(chatEndpoint('api.example.com/v1/')).toBe('https://api.example.com/v1/chat/completions');
+  });
+
+  it('rejects an empty base URL instead of silently calling one vendor', () => {
+    expect(() => normalizeBaseUrl('')).toThrow(/Base URL/);
+    expect(() => chatEndpoint('  ')).toThrow(/Base URL/);
   });
 });

@@ -1,4 +1,4 @@
-﻿import { chromium } from '@playwright/test';
+import { chromium } from '@playwright/test';
 import fs from 'node:fs';
 
 const DOCS = 'docs';
@@ -70,8 +70,10 @@ async function buildDemo(page, { mobile = false, withBooks = true } = {}) {
   await page.getByRole('button', { name: '创建角色卡' }).click();
   await page.waitForTimeout(700);
 
-  // Local mock endpoint, so the demo chat shows a real reply.
+  // Local mock endpoint, so the demo chat shows a real reply. A non-default
+  // provider keeps the screenshots focused on the app instead of one vendor.
   await page.locator('.chat-actions button[title="设置"]').click();
+  await page.locator('#provider').selectOption('qwen');
   await page.locator('#api-key').fill('sk-demo');
   await page.locator('#base-url').fill('http://127.0.0.1:8787/v1');
   await page.getByRole('button', { name: '保存设置' }).click();

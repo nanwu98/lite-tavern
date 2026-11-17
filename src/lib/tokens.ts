@@ -3,7 +3,8 @@
  *
  * We deliberately do not ship a tokenizer: a BPE table would add ~1 MB to the
  * bundle for an estimate that only needs to answer "is the prompt close to the
- * window?". CJK characters are close to one token each for DeepSeek models,
+ * window?". CJK characters are close to one token each for the models this app
+ * talks to,
  * Latin text averages ~3.6 characters per token. The estimate over-counts
  * slightly on mixed text, which makes compaction trigger a little early instead
  * of failing at the provider.

@@ -180,7 +180,7 @@ export function useChat(onNeedSettings: () => void) {
         return;
       }
       if (!state.settings.apiKey.trim()) {
-        state.toast('请先在设置里填写 DeepSeek API Key', 'error');
+        state.toast('请先在设置里填写 API Key', 'error');
         onNeedSettings();
         return;
       }
@@ -287,7 +287,7 @@ export function useChat(onNeedSettings: () => void) {
     const chat = activeChat(state);
     if (!chat) return;
     if (!state.settings.apiKey.trim()) {
-      state.toast('请先在设置里填写 DeepSeek API Key', 'error');
+      state.toast('请先在设置里填写 API Key', 'error');
       onNeedSettings();
       return;
     }
@@ -312,7 +312,7 @@ export function useChat(onNeedSettings: () => void) {
     const chat = activeChat(state);
     if (!chat) return;
     if (!state.settings.apiKey.trim()) {
-      state.toast('请先在设置里填写 DeepSeek API Key', 'error');
+      state.toast('请先在设置里填写 API Key', 'error');
       onNeedSettings();
       return;
     }

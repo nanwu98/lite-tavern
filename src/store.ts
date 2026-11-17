@@ -20,6 +20,7 @@ import {
   type ImportStats,
 } from './lib/backup';
 import { DEFAULT_SETTINGS } from './defaults';
+import { normalizeSettings } from './lib/providers';
 import { truncate, uid } from './lib/util';
 import { applyMacros } from './lib/prompt';
 import {
@@ -863,7 +864,10 @@ export const useStore = create<AppState>()(
           ...current,
           ...p,
           chats,
-          settings: { ...DEFAULT_SETTINGS, ...(p.settings ?? {}) },
+          settings: {
+            ...DEFAULT_SETTINGS,
+            ...normalizeSettings(p.settings),
+          } as Settings,
         };
       },
     },

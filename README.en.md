@@ -26,7 +26,9 @@ group chat, no plugin store, no cloud sync — just the story.
 - Three columns: conversations on the left, chat in the middle, cards on the right.
 - Everything is stored locally; the API key never leaves your machine except as
   an `Authorization` header to the endpoint you configure.
-- Built-in streaming client for DeepSeek and any OpenAI-compatible API.
+- Built-in streaming client for DeepSeek, Qwen, Zhipu, Kimi, ERNIE, Hunyuan,
+  Doubao, SiliconFlow and any other OpenAI-compatible endpoint, including your
+  own gateway.
 
 ## Features
 
@@ -58,8 +60,11 @@ group chat, no plugin store, no cloud sync — just the story.
   Older WebViews automatically fall back to opaque panels.
 - **Boss key (desktop)**: a configurable global shortcut hides and restores the
   window.
-- **Models**: DeepSeek or any OpenAI-compatible endpoint, with streaming,
-  temperature, context length and world-book budget controls.
+- **Model providers (1.6.0+)**: pick a provider from a dropdown and the Base URL,
+  suggested models, context window and API-key page are filled in for you; keys
+  are remembered per provider, and "Custom" accepts any OpenAI-compatible
+  endpoint. Streaming, temperature, context length and world-book budget are
+  adjustable.
 - **In-app updates (1.5.0+)**: Settings → About & updates checks the latest
   release, shows its notes and installer size, verifies the SHA-256 from the
   release manifest, then swaps the launcher and restarts (Windows) or opens the
@@ -162,8 +167,8 @@ published and the APK can still be produced locally with `pnpm android:build`.
 
 ## Usage
 
-1. Open Settings, enter your API key, Base URL (default `https://api.deepseek.com`)
-   and model name, then **Test connection** and save.
+1. Open Settings → **Model service**, pick a provider (or "Custom" and type a Base
+   URL), enter the API key and model name, press "Test connection" and save.
 2. On the right, **Import** a PNG/JSON card, or **New** to write one by hand.
 3. Embedded world books mount automatically; use the card menu to import, create
    or edit world books.
@@ -175,6 +180,28 @@ published and the APK can still be produced locally with `pnpm android:build`.
    its **✕** asks for confirmation and then deletes the card with its chats.
 7. Settings → Backup & restore: choose what to include, export a timestamped JSON
    file, and import it on another device.
+
+### Supported model services
+
+<p align="center">
+  <img src="docs/model-service.png" width="680" alt="Model service in Settings" />
+</p>
+
+The provider dropdown fills in the Base URL, model suggestions and the page where
+the API key is created. Model ids are suggestions only — the field stays editable,
+and the provider console is the source of truth.
+
+| Provider                 | Base URL                                            | Example models                                   |
+| ------------------------ | --------------------------------------------------- | ------------------------------------------------ |
+| DeepSeek                 | `https://api.deepseek.com`                          | `deepseek-chat` / `deepseek-reasoner`            |
+| Qwen (Alibaba DashScope) | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-plus` / `qwen-max`                         |
+| Zhipu GLM                | `https://open.bigmodel.cn/api/paas/v4`              | `glm-4.6` / `glm-4-flash`                        |
+| Kimi (Moonshot)          | `https://api.moonshot.cn/v1`                        | `kimi-k2-0905-preview`                           |
+| ERNIE (Baidu Qianfan)    | `https://qianfan.baidubce.com/v2`                   | `ernie-4.5-turbo-128k`                           |
+| Tencent Hunyuan          | `https://api.hunyuan.cloud.tencent.com/v1`          | `hunyuan-turbos-latest`                          |
+| Doubao (Volcengine Ark)  | `https://ark.cn-beijing.volces.com/api/v3`          | `doubao-seed-1-6-250615` (or an `ep-…` endpoint) |
+| SiliconFlow              | `https://api.siliconflow.cn/v1`                     | `deepseek-ai/DeepSeek-V3`                        |
+| Custom                   | any OpenAI-compatible URL                           | per your provider                                |
 
 ### Checking for updates
 

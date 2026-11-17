@@ -31,14 +31,31 @@ describe('snapshot redaction', () => {
     const json = JSON.stringify({
       state: {
         characters: [{ id: 'c1', name: '临渊' }],
-        settings: { apiKey: 'sk-secret-value', model: 'deepseek-flash' },
+        settings: { apiKey: 'sk-secret-value', model: 'test-model' },
       },
       version: 1,
     });
     const redacted = redactSecrets(json);
     expect(redacted).not.toContain('sk-secret-value');
     expect(redacted).toContain('"apiKey":""');
-    expect(redacted).toContain('deepseek-flash');
+    expect(redacted).toContain('test-model');
     expect(redacted).toContain('临渊');
+  });
+
+  it('also drops every key kept per provider', () => {
+    const json = JSON.stringify({
+      state: {
+        settings: {
+          apiKey: 'sk-current',
+          apiKeys: { deepseek: 'sk-one', qwen: 'sk-two', custom: '' },
+        },
+      },
+      version: 1,
+    });
+    const redacted = redactSecrets(json);
+    expect(redacted).not.toContain('sk-one');
+    expect(redacted).not.toContain('sk-two');
+    expect(redacted).not.toContain('sk-current');
+    expect(redacted).toContain('"apiKeys":{"deepseek":"","qwen":"","custom":""}');
   });
 });

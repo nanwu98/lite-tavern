@@ -136,7 +136,7 @@ function Welcome({
           <span className="dot" />
           <span>自动读取世界书</span>
           <span className="dot" />
-          <span>DeepSeek 驱动</span>
+          <span>多模型可选</span>
         </div>
       </div>
     </main>

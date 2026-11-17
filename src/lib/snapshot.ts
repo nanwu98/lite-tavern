@@ -33,7 +33,13 @@ function bridge(): SnapshotBridge | undefined {
 
 /** Removes credentials before a state snapshot is written to disk. */
 export function redactSecrets(json: string): string {
-  return json.replace(/("apiKey"\s*:\s*")[^"]*(")/g, '$1$2');
+  return json
+    .replace(/("apiKey"\s*:\s*")[^"]*(")/g, '$1$2')
+    .replace(
+      /("apiKeys"\s*:\s*\{)([^}]*)(\})/g,
+      (_match, head: string, body: string, tail: string) =>
+        `${head}${body.replace(/("[^"]*"\s*:\s*")[^"]*(")/g, '$1$2')}${tail}`,
+    );
 }
 
 export async function writeSnapshot(json: string): Promise<void> {

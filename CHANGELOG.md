@@ -4,6 +4,26 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.6.0] - 2026-11-17
+
+### Added
+
+- Model provider picker: DeepSeek、通义千问（阿里云百炼）、智谱 GLM、Kimi（月之暗面）、
+  文心一言（百度千帆）、腾讯混元、豆包（火山方舟）、硅基流动，以及「自定义」任意
+  OpenAI 兼容接口。选中后会填入 Base URL、常用模型、上下文窗口和申请 Key 的页面。
+- 每个服务商的 Key 单独保存（`apiKeys`），切换回来时自动恢复，不用重新粘贴。
+- 老版本设置自动迁移：根据已存的 Base URL 识别服务商，原来的 Key 归到该服务商名下。
+
+### Changed
+
+- 设置页不再围绕单一厂商：入口改为「模型服务」，错误提示统一指向「服务商控制台」。
+- 自动恢复快照会抹掉**所有**服务商的 Key，而不只是当前那个。
+- README 增加各服务商的 Base URL 与模型示例对照表。
+
+### Removed
+
+- 硬编码的默认模型列表和「DeepSeek 驱动」等品牌文案。
+
 ## [1.5.0] - 2026-11-17
 
 ### Added
