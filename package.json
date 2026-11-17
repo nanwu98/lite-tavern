@@ -1,6 +1,6 @@
 {
   "name": "lite-tavern",
-  "version": "1.6.2",
+  "version": "1.6.3",
   "private": true,
   "description": "A minimal local client for SillyTavern character cards and world books",
   "author": "LiteTavern contributors",

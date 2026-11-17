@@ -4,12 +4,26 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.6.3] - 2026-11-17
+
+### Fixed
+
+- 1.6.2 的沉浸式在实机（Android 16、屏幕密度 3.25）上把系统栏的物理像素直接当成了 CSS 像素，
+  状态栏 152px 被当成 152dp，顶部因此多出约三倍空白。现在先按屏幕密度换算成 dp 再交给界面。
+- 手机端 `.chat-view` 仍按 `100dvh` 定高，叠加安全区 padding 后比可视区高出状态栏那一截，
+  底部输入框会被裁掉，宽屏下还会多出横向溢出。现在 shell 固定一行网格，子视图用 `height: 100%`。
+- 抽屉（对话列表 / 角色卡）改用 `--safe-top` / `--safe-bottom`，内容不再顶到状态栏或手势条下面。
+
+### Notes
+
+- 已在某品牌手机实机上回归：竖屏、横屏（刘海侧）、深色/浅色主题、设置弹窗、抽屉、聊天输入框。
+
 ## [1.6.2] - 2026-11-17
 
 ### Fixed
 
 - Android 状态栏/导航栏不沉浸：窗口默认不绘制到系统栏后面，状态栏被主题色涂成一条黑边
-  （红米 Turbo 5 Max / HyperOS 上很明显）。现在 `MainActivity` 开启 edge-to-edge、
+  （在实机上很明显）。现在 `MainActivity` 开启 edge-to-edge、
   两条系统栏设为透明，并用 `LiteShell` 插件把实测的 insets 通过 `--safe-top` /
   `--safe-bottom` 交给界面自行留白，应用背景（极光渐变）一直延伸到屏幕边缘；
   浅色主题下状态栏图标会自动转为深色。

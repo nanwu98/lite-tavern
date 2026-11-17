@@ -95,17 +95,26 @@ public class LiteShellPlugin extends Plugin {
         Insets bars =
                 insets.getInsets(
                         WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
+        // WindowInsets are physical pixels; the web layer works in CSS pixels
+        // (dp), so divide by the display density. Without this a 152 px status
+        // bar on a 3.25x screen becomes a 152 CSS px gap.
+        float density = getContext().getResources().getDisplayMetrics().density;
+        if (density <= 0f) density = 1f;
+        int nextTop = Math.round(bars.top / density);
+        int nextBottom = Math.round(bars.bottom / density);
+        int nextLeft = Math.round(bars.left / density);
+        int nextRight = Math.round(bars.right / density);
         if (measured
-                && bars.top == top
-                && bars.bottom == bottom
-                && bars.left == left
-                && bars.right == right) {
+                && nextTop == top
+                && nextBottom == bottom
+                && nextLeft == left
+                && nextRight == right) {
             return;
         }
-        top = bars.top;
-        bottom = bars.bottom;
-        left = bars.left;
-        right = bars.right;
+        top = nextTop;
+        bottom = nextBottom;
+        left = nextLeft;
+        right = nextRight;
         measured = true;
         notifyListeners("insets", payload());
     }

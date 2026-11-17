@@ -2017,7 +2017,8 @@ a:hover {
     z-index: 70;
     transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
     box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
-    padding-top: env(safe-area-inset-top);
+    padding-top: var(--safe-top, 0px);
+    padding-bottom: var(--safe-bottom, 0px);
   }
 
   .chat-list-panel {
@@ -2046,8 +2047,8 @@ a:hover {
 
   .chat-view {
     grid-column: 1;
-    height: 100vh;
-    height: 100dvh;
+    /* Fills the padded shell (see .app), not the whole window. */
+    height: 100%;
   }
 
   .mobile-only {
@@ -3995,6 +3996,10 @@ button:focus-visible {
    desktop and in a browser the variables are unset and this is a no-op. */
 .app {
   box-sizing: border-box;
+  /* One row fills the padded content box, so children can use height: 100%
+     instead of 100dvh (which is the full window and would overflow by exactly
+     the status-bar padding). */
+  grid-template-rows: minmax(0, 1fr);
   padding-top: var(--safe-top, 0px);
   padding-bottom: var(--safe-bottom, 0px);
   padding-left: var(--safe-left, 0px);
