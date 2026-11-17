@@ -1,3 +1,9 @@
+# Single-package workspace: the `packages` field keeps `pnpm store path`
+# (used by actions/setup-node) working, since it refuses to read a workspace
+# file without one.
+packages:
+  - "."
+
 allowBuilds:
   electron: true
   electron-winstaller: true

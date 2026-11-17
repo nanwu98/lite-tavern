@@ -174,3 +174,11 @@ export const IconArchive = (p: P) => (
     <path d="M3 4.5h18v3H3zM9.5 11.5h5" />
   </svg>
 );
+
+/** Download to this device. */
+export const IconDownload = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M12 4v11m0 0-4.2-4.2M12 15l4.2-4.2" />
+    <path d="M4.5 17v2.5A1.5 1.5 0 0 0 6 21h12a1.5 1.5 0 0 0 1.5-1.5V17" />
+  </svg>
+);

@@ -1,12 +1,13 @@
 {
   "name": "lite-tavern",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "private": true,
   "description": "A minimal local client for SillyTavern character cards and world books",
   "author": "LiteTavern contributors",
   "license": "MIT",
   "type": "module",
   "main": "electron/main.cjs",
+  "packageManager": "pnpm@11.28.5",
   "homepage": "https://github.com/nanwu98/lite-tavern#readme",
   "repository": {
     "type": "git",
@@ -24,7 +25,7 @@
     "capacitor"
   ],
   "engines": {
-    "node": ">=20"
+    "node": ">=22.13"
   },
   "scripts": {
     "dev": "vite --port 5173",
@@ -40,7 +41,8 @@
     "windows:build": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-windows.ps1",
     "android:sync": "npm run build && cap sync android",
     "android:open": "cap open android",
-    "android:build": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-android.ps1"
+    "android:build": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-android.ps1",
+    "release:manifest": "node scripts/make-version-manifest.mjs"
   },
   "dependencies": {
     "@capacitor/core": "6.2.3",

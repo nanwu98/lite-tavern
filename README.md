@@ -34,6 +34,7 @@
 - **上下文压缩（1.4.0 起）**：长对话会把最早的一批消息交给模型总结成一段「长期记忆」，之后只发送「记忆 + 最近几条消息」，省下大量上下文又不忘剧情。设置里可开**自动压缩上下文**（达到上限 80% 时自动触发），聊天头部也能看到当前用量并手动压缩；如果关掉自动压缩、真的被服务端以「上下文超限」拒绝，失败的消息里会出现**一键压缩上下文并继续对话**按钮，点一下就走同一套压缩流程。
 - **备份与恢复**：设置 → 备份与恢复，勾选「角色卡（含世界书）」和/或「聊天记录（含对应角色卡）」，导出带时间戳的 JSON 备份；换设备或重装后导入同一个文件即可恢复。Windows 与 Android 之间互通，导入是**合并**而不是覆盖。
 - **角色卡代码（1.1.0 起）**：卡里用酒馆助手 / JS-Slash-Runner 写的 HTML + JS 会在隔离 iframe 中运行——角色创建表单、状态栏、悬浮窗、MVU 变量更新都能工作。可在设置里整体关闭。
+- **应用内更新（1.5.0 起）**：设置 → **关于与更新** 一键检查新版本，显示更新说明与安装包大小；下载后先用清单里的 SHA-256 校验再安装——Windows 会替换启动器并自动重启，Android 会调起系统安装器（需要你确认一次）。
 - **外观**：深色 / 亮色 / 跟随系统，「暖暮柔光玻璃」界面：分层极光背景、磨砂面板、柔和光晕与克制的入场动效；低配 WebView 会自动退回不透明的实色面板。
 - **老板键（桌面版）**：自定义全局快捷键，一键隐藏 / 恢复窗口。
 - **模型**：DeepSeek 或任意 OpenAI 兼容服务，流式输出、温度、上下文长度、世界书预算可调。
@@ -73,7 +74,7 @@
 
 ## 从源码构建
 
-需要 Node.js 20+、pnpm 9。
+需要 Node.js 22.13+、pnpm 11。
 
 ```bash
 pnpm install
@@ -108,6 +109,19 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-android.ps1
   `LITE_TAVERN_KEYSTORE` / `LITE_TAVERN_KEYSTORE_PASS` / `LITE_TAVERN_KEY_ALIAS` 中配置。
 - 想覆盖安装旧版本，请保留并复用同一个密钥。
 
+### 发布新版本
+
+```bash
+node scripts/bump-version.mjs 1.5.0   # 同步 package.json、Android versionCode/versionName、启动器版本
+# 在 CHANGELOG.md 写一段 ## [1.5.0]（发布说明会自动取这一段）
+git commit -am "release: 1.5.0" && git tag v1.5.0 && git push origin main --tags
+```
+
+打 tag 后 `Release` 工作流会构建 exe / APK、生成 `version.json`（含文件名、大小、SHA-256）
+并创建 GitHub Release。Android 自动构建需要这三个仓库 Secrets：
+`ANDROID_KEYSTORE_BASE64`、`ANDROID_KEYSTORE_PASS`、`ANDROID_KEY_ALIAS`；
+没配置时只发布 Windows 版本，APK 仍可用 `pnpm android:build` 在本地出包后手动上传。
+
 ## 使用
 
 1. 打开设置，填写 API Key、Base URL（默认 `https://api.deepseek.com`）和模型名，点「测试连接」后保存。
@@ -117,6 +131,18 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-android.ps1
 5. 设置里可以切换深色 / 亮色 / 跟随系统；桌面版还能设置老板键。
 6. 启动页（没有选中对话时）会列出全部角色卡，右上角的 **✕** 点一次会弹确认，确认后删除该卡及其对话。
 7. 设置 → 备份与恢复：勾选要备份的内容，导出带时间戳的 JSON；换设备后在同一个入口导入即可。
+
+### 检查更新
+
+- 设置 → 关于与更新 → **检查更新**。版本清单是随 Release 一起发布的 `version.json`，
+  通过 `releases/latest/download/...` 读取，不消耗 GitHub API 配额。
+- 直连 `github.com` 失败会自动改走 `ghfast.top` / `ghproxy.net` 镜像；下载完成后用清单里
+  的 SHA-256 校验，被镜像篡改的包会被直接丢弃。
+- **Windows**：下载 → 校验 → 替换启动器（旧文件改名 `.old`，下次启动自动清理）→ 自动重启。
+  角色卡、对话与设置都在 `UserData` 里，升级不会丢。
+- **Android**：下载 → 校验 → 调起系统安装器。首次需要在系统设置里允许「轻语酒馆」
+  安装未知应用；Android 不允许应用静默安装，最后一步始终由你确认。
+- 只有你点「检查更新」时才会联网，应用平时不会主动请求任何服务器。
 
 ### 备份与恢复
 

@@ -56,4 +56,22 @@ contextBridge.exposeInMainWorld('liteTavern', {
   setTheme(theme) {
     ipcRenderer.send('lite:set-theme', theme === 'light' ? 'light' : 'dark');
   },
+  /** Compares the running version with the manifest of the latest release. */
+  checkUpdate() {
+    return ipcRenderer.invoke('lite:update-check');
+  },
+  /** Downloads and SHA-256 verifies the installer, returning its local path. */
+  downloadUpdate() {
+    return ipcRenderer.invoke('lite:update-download');
+  },
+  /** Replaces the launcher in place and restarts the app. */
+  installUpdate() {
+    return ipcRenderer.invoke('lite:update-install');
+  },
+  /** Desktop only: subscribe to download progress; returns an unsubscribe function. */
+  onUpdateProgress(callback) {
+    const handler = (_event, progress) => callback(progress);
+    ipcRenderer.on('lite:update-progress', handler);
+    return () => ipcRenderer.removeListener('lite:update-progress', handler);
+  },
 });

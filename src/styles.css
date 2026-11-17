@@ -3920,3 +3920,69 @@ button:focus-visible {
     display: flex !important;
   }
 }
+
+/* Settings → About & updates */
+.update-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.update-version {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.update-version strong {
+  color: var(--text);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.update-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.update-card {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--hairline-strong, var(--hairline));
+  border-radius: 14px;
+  background: var(--panel-2);
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+
+.update-card-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.update-notes {
+  margin: 0;
+  max-height: 220px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.update-progress-line {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}

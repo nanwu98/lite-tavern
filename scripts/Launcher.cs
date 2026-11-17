@@ -10,12 +10,12 @@ using System.Windows.Forms;
 [assembly: AssemblyTitle("轻语酒馆")]
 [assembly: AssemblyProduct("轻语酒馆")]
 [assembly: AssemblyDescription("轻语酒馆 - 极简角色卡 × 世界书聊天")]
-[assembly: AssemblyVersion("1.4.0.0")]
-[assembly: AssemblyFileVersion("1.4.0.0")]
+[assembly: AssemblyVersion("1.5.0.0")]
+[assembly: AssemblyFileVersion("1.5.0.0")]
 
 static class Program
 {
-    private const string AppVersion = "1.4.0";
+    private const string AppVersion = "1.5.0";
 
     [STAThread]
     private static void Main(string[] args)
@@ -38,6 +38,10 @@ static class Program
                 "轻语酒馆", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return;
         }
+
+        // A previous in-app update renamed the old launcher to "<name>.old" and
+        // dropped the replacement in its place; clean that copy up now.
+        CleanupStaleBackup();
 
         string root = Path.Combine(baseDir, AppVersion);
         string exe = Path.Combine(root, "LiteTavern.exe");
@@ -105,6 +109,10 @@ static class Program
             string userData = Path.Combine(baseDir, "UserData");
             Directory.CreateDirectory(userData);
             info.EnvironmentVariables["LITE_TAVERN_USER_DATA"] = userData;
+            // The in-app updater swaps this launcher for the new release and
+            // restarts it, so the app has to know both paths.
+            info.EnvironmentVariables["LITE_TAVERN_LAUNCHER"] = Application.ExecutablePath;
+            info.EnvironmentVariables["LITE_TAVERN_HOME"] = baseDir;
 
             List<string> allArgs = new List<string>();
             allArgs.Add("--no-sandbox");
@@ -171,9 +179,21 @@ static class Program
         throw new Exception("没有可写目录。最后错误：" + (last == null ? "未知" : last.Message));
     }
 
-    private static bool HasInstalledVersion(string baseDir)
+    /// <summary>
+    /// Deletes the "&lt;launcher&gt;.old" copy that an in-app update leaves behind.
+    /// </summary>
+    private static void CleanupStaleBackup()
     {
         try
+        {
+            string stale = Application.ExecutablePath + ".old";
+            if (File.Exists(stale)) File.Delete(stale);
+        }
+        catch { }
+    }
+
+    private static bool HasInstalledVersion(string baseDir)
+    {        try
         {
             if (!Directory.Exists(baseDir)) return false;
             foreach (string dir in Directory.GetDirectories(baseDir))

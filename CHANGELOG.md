@@ -4,6 +4,27 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.5.0] - 2026-11-17
+
+### Added
+
+- In-app updates (设置 → 关于与更新) for both the Windows single-file build and the
+  Android APK: the app reads `version.json` from the latest GitHub release, shows
+  the release notes and installer size, downloads through GitHub (falling back to
+  public mirrors), verifies the published SHA-256, and then either swaps the
+  launcher and restarts (Windows) or opens the system installer (Android).
+- `scripts/make-version-manifest.mjs` plus a tag-driven release workflow that
+  builds both installers, publishes them together with `version.json`, and keeps
+  the manifest hashes in sync with the published binaries.
+
+### Changed
+
+- The Windows launcher exports `LITE_TAVERN_LAUNCHER` and `LITE_TAVERN_HOME`, so
+  the app can replace the launcher it was started from, and deletes the `.old`
+  copy left behind after an update.
+- Android asks for `REQUEST_INSTALL_PACKAGES`; installation still needs an
+  explicit confirmation from the user.
+
 ## [1.4.0] - 2026-11-17
 
 ### Added

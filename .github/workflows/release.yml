@@ -1,0 +1,206 @@
+name: Release
+
+# Tag-driven release: `git tag v1.5.0 && git push origin v1.5.0` builds the
+# Windows single-file exe and (when signing secrets are configured) the Android
+# APK, then publishes both together with `version.json` — the manifest the app's
+# update check reads.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 要发布的版本号（必须与 package.json 一致，例如 1.5.0）
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  version:
+    name: Resolve version
+    runs-on: ubuntu-latest
+    outputs:
+      value: ${{ steps.read.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check tag against package.json
+        id: read
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ inputs.version || github.ref_name }}"
+          version="${version#v}"
+          package="$(node -p "require('./package.json').version")"
+          if [ "$version" != "$package" ]; then
+            echo "::error::发布版本 $version 与 package.json 的 $package 不一致"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  windows:
+    name: Windows single-file exe
+    needs: version
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm windows:build
+
+      - name: Report artifact
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem release/*.exe | Select-Object -First 1
+          "{0} ({1:N1} MB)" -f $exe.Name, ($exe.Length / 1MB)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-exe
+          path: release/*.exe
+          if-no-files-found: error
+
+  android:
+    name: Android APK
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check signing secrets
+        id: signing
+        shell: bash
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::未配置 ANDROID_KEYSTORE_BASE64，跳过 APK 构建（Windows 版本仍会发布）"
+          fi
+
+      - uses: pnpm/action-setup@v4
+        if: steps.signing.outputs.enabled == 'true'
+
+      - uses: actions/setup-node@v4
+        if: steps.signing.outputs.enabled == 'true'
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        if: steps.signing.outputs.enabled == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Build web bundle and sync Capacitor
+        if: steps.signing.outputs.enabled == 'true'
+        run: |
+          pnpm build
+          pnpm exec cap sync android
+
+      - name: Gradle assembleRelease
+        if: steps.signing.outputs.enabled == 'true'
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+
+      - name: Align and sign
+        if: steps.signing.outputs.enabled == 'true'
+        shell: bash
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          VERSION: ${{ needs.version.outputs.value }}
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          keystore_file="$RUNNER_TEMP/release.keystore"
+          printf '%s' "$KEYSTORE" | base64 -d > "$keystore_file"
+          build_tools="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -n 1)"
+          "$build_tools/zipalign" -f -p 4 \
+            android/app/build/outputs/apk/release/app-release-unsigned.apk \
+            "$RUNNER_TEMP/app-aligned.apk"
+          "$build_tools/apksigner" sign \
+            --ks "$keystore_file" \
+            --ks-key-alias "$KEY_ALIAS" \
+            --ks-pass "pass:$STORE_PASS" \
+            --key-pass "pass:$STORE_PASS" \
+            --out "release/LiteTavern-$VERSION.apk" \
+            "$RUNNER_TEMP/app-aligned.apk"
+          "$build_tools/apksigner" verify --verbose "release/LiteTavern-$VERSION.apk"
+
+      - uses: actions/upload-artifact@v4
+        if: steps.signing.outputs.enabled == 'true'
+        with:
+          name: android-apk
+          path: release/*.apk
+          if-no-files-found: error
+
+  publish:
+    name: Publish release
+    needs: [version, windows, android]
+    if: always() && needs.windows.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Collect installers
+        shell: bash
+        run: |
+          mkdir -p release
+          find artifacts -type f \( -name '*.exe' -o -name '*.apk' \) -exec cp {} release/ \;
+          ls -l release
+
+      - name: Generate version.json
+        run: node scripts/make-version-manifest.mjs --version "${{ needs.version.outputs.value }}"
+
+      - name: Create or update the GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.version.outputs.value }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="v$VERSION"
+          assets=(release/version.json)
+          while IFS= read -r file; do assets+=("$file"); done < <(find release -maxdepth 1 -type f \( -name '*.exe' -o -name '*.apk' \))
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" "${assets[@]}" --clobber
+            gh release edit "$tag" --title "LiteTavern $VERSION" --notes-file release/RELEASE_NOTES.md
+          else
+            gh release create "$tag" \
+              --title "LiteTavern $VERSION" \
+              --notes-file release/RELEASE_NOTES.md \
+              "${assets[@]}"
+          fi

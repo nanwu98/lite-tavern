@@ -7,8 +7,8 @@ project, what the code expects, and what a good pull request looks like.
 
 Requirements:
 
-- Node.js **20 or newer** (`.nvmrc` pins 20)
-- pnpm **9** (npm also works, but the lockfile is pnpm)
+- Node.js **22.13 or newer** (`.nvmrc` pins 22; pnpm 11 needs it)
+- pnpm **11** (npm also works, but the lockfile is pnpm)
 - For the desktop build: Windows 10/11 (the single-file launcher is a small .NET app)
 - For the Android build: JDK 17+, Android SDK with `platforms;android-34` and `build-tools;34.0.0`
 

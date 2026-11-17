@@ -60,6 +60,10 @@ group chat, no plugin store, no cloud sync — just the story.
   window.
 - **Models**: DeepSeek or any OpenAI-compatible endpoint, with streaming,
   temperature, context length and world-book budget controls.
+- **In-app updates (1.5.0+)**: Settings → About & updates checks the latest
+  release, shows its notes and installer size, verifies the SHA-256 from the
+  release manifest, then swaps the launcher and restarts (Windows) or opens the
+  system package installer (Android, which still asks for confirmation).
 
 ## Screenshots
 
@@ -104,7 +108,7 @@ never stranded in another directory.
 
 ## Build from source
 
-Requires Node.js 20+ and pnpm 9.
+Requires Node.js 22.13+ and pnpm 11.
 
 ```bash
 pnpm install
@@ -142,6 +146,20 @@ Signing keys are never committed:
   `LITE_TAVERN_KEY_ALIAS`.
 - Keep and reuse the same key if you want to upgrade an installed APK in place.
 
+### Publishing a release
+
+```bash
+node scripts/bump-version.mjs 1.5.0   # package.json + Android versionCode/versionName + launcher
+# add a "## [1.5.0]" section to CHANGELOG.md (it becomes the release notes)
+git commit -am "release: 1.5.0" && git tag v1.5.0 && git push origin main --tags
+```
+
+The `Release` workflow then builds the exe/APK, writes `version.json` (file name,
+size and SHA-256 per platform) and creates the GitHub release. Automatic Android
+builds need the `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASS` and
+`ANDROID_KEY_ALIAS` repository secrets; without them only the Windows build is
+published and the APK can still be produced locally with `pnpm android:build`.
+
 ## Usage
 
 1. Open Settings, enter your API key, Base URL (default `https://api.deepseek.com`)
@@ -157,6 +175,22 @@ Signing keys are never committed:
    its **✕** asks for confirmation and then deletes the card with its chats.
 7. Settings → Backup & restore: choose what to include, export a timestamped JSON
    file, and import it on another device.
+
+### Checking for updates
+
+- Settings → About & updates → **Check for updates**. The version manifest is
+  `version.json`, published as a release asset next to the installers and read
+  through `releases/latest/download/...`, so it costs no GitHub API quota.
+- If `github.com` is unreachable the request falls back to the `ghfast.top` and
+  `ghproxy.net` mirrors; every download is checked against the SHA-256 in the
+  manifest, and a mirror that rewrites the binary gets discarded.
+- **Windows**: download → verify → replace the launcher (the previous file is
+  renamed `.old` and cleaned up on the next start) → restart. Cards, chats and
+  settings live in `UserData` and survive the upgrade.
+- **Android**: download → verify → hand the APK to the system installer. The
+  first time you must allow "install unknown apps" for LiteTavern; Android never
+  installs silently, so the last step is always yours.
+- The app only contacts the network when you press the button.
 
 ### Backup and restore
 

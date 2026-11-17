@@ -8,6 +8,7 @@ import { formatLimit } from '../lib/tokens';
 import { backupFileName, parseBackup, statsSummary, type BackupPayload } from '../lib/backup';
 import { pickTextFile, saveTextFile } from '../lib/backupFile';
 import { IconAlert, IconArchive, IconCheck, IconCompress, IconSparkles } from './Icons';
+import { UpdateSection } from './UpdateSection';
 
 interface SettingsModalProps {
   open: boolean;
@@ -628,6 +629,8 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             </p>
           )}
         </section>
+
+        <UpdateSection />
 
         <p className="settings-note">
           所有角色卡、世界书与聊天记录只保存在本机（IndexedDB）。只有调用模型时，提示词会发送到你填写的

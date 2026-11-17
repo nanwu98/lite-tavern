@@ -9,6 +9,7 @@ const {
 } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
+const updater = require('./updater.cjs');
 
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
 let mainWindow = null;
@@ -350,4 +351,45 @@ ipcMain.handle('lite:clear-snapshot', async () => {
   } catch {
     return { ok: false };
   }
+});
+
+/* ------------------------------------------------------------------------- */
+/* Updates                                                                   */
+/* ------------------------------------------------------------------------- */
+
+/** The release the user is currently installing, shared across the three IPC calls. */
+let pendingUpdate = null;
+
+function broadcastUpdateProgress(progress) {
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (!win.isDestroyed()) win.webContents.send('lite:update-progress', progress);
+  }
+}
+
+ipcMain.handle('lite:update-check', async () => {
+  const result = await updater.checkForUpdates();
+  pendingUpdate = result.status === 'available' && result.asset ? { asset: result.asset } : null;
+  return result;
+});
+
+ipcMain.handle('lite:update-download', async () => {
+  if (!pendingUpdate?.asset) return { ok: false, error: '请先检查更新' };
+  try {
+    const result = await updater.downloadUpdate(pendingUpdate.asset, broadcastUpdateProgress);
+    pendingUpdate.path = result.path;
+    return { ok: true, path: result.path, size: result.size };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+});
+
+ipcMain.handle('lite:update-install', async () => {
+  if (!pendingUpdate?.path) return { ok: false, error: '安装包不存在，请重新下载' };
+  const result = updater.installUpdate(pendingUpdate.path);
+  if (result.ok && result.restarted) {
+    // Give the renderer a moment to render "正在重启" before the window closes.
+    setTimeout(() => app.quit(), 600);
+  }
+  pendingUpdate = null;
+  return result;
 });

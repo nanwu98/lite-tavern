@@ -29,6 +29,10 @@ LiteTavern is a local-first desktop/mobile client:
   pages) is executed inside sandboxed iframes with a compatibility bridge. It is
   arbitrary code from the card author: only import cards you trust. The setting
   _Settings → 角色卡代码_ disables execution entirely.
-- **Update and build integrity**: the repository contains no signing keys. Local
-  APK signing configuration belongs in the git-ignored
-  `android/keystore.properties` or environment variables.
+- **Update and build integrity**: updates are fetched from GitHub Releases and
+  every download is verified against the SHA-256 published in that release's
+  `version.json` before it is installed. Mirrors are used only as transports: a
+  mirror that replaces the binary is detected and the file is discarded. Android
+  never installs silently — the system installer always asks the user. The
+  repository contains no signing keys. Local APK signing configuration belongs
+  in the git-ignored `android/keystore.properties` or environment variables.
