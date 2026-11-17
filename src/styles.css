@@ -4032,9 +4032,21 @@ button:focus-visible {
      the status-bar padding). */
   grid-template-rows: minmax(0, 1fr);
   padding-top: var(--safe-top, 0px);
-  padding-bottom: var(--safe-bottom, 0px);
+  /*
+   * `--keyboard-inset` is the on-screen keyboard height published by the Android
+   * shell. With edge-to-edge the window is not resized when the IME opens, so
+   * reserving it here is what keeps the composer (and focused inputs) above the
+   * keyboard instead of hidden behind it.
+   */
+  padding-bottom: calc(var(--safe-bottom, 0px) + var(--keyboard-inset, 0px));
   padding-left: var(--safe-left, 0px);
   padding-right: var(--safe-right, 0px);
+}
+
+/* Dialogs are portalled to <body>, so they do not inherit the shell's padding:
+   lift their backdrop out of the keyboard's way as well. */
+.modal-backdrop {
+  bottom: var(--keyboard-inset, 0px);
 }
 
 /* ==========================================================================

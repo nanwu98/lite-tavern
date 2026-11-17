@@ -28,6 +28,7 @@ import { settingsForChat } from '../lib/chatSettings';
 import { MessageContent } from './MessageContent';
 import { ScriptButtonBar, ScriptHost } from './ScriptHost';
 import { displayText } from '../lib/tavern/display';
+import { KEYBOARD_EVENT } from '../lib/systemBars';
 import { chatActions } from '../lib/tavern/bus';
 import { eventBus, tavern_events } from '../lib/tavern/events';
 import { ensureChatScope } from '../lib/tavern/variables';
@@ -415,6 +416,20 @@ export function ChatView({
     if (!el || !stickRef.current) return;
     el.scrollTop = el.scrollHeight;
   }, [chat.messages, chat.id]);
+
+  // When the on-screen keyboard opens the composer moves up; keep the newest
+  // message in view instead of leaving the reader where they were.
+  useEffect(() => {
+    const onKeyboard = () => {
+      if (!stickRef.current) return;
+      requestAnimationFrame(() => {
+        const el = scrollRef.current;
+        if (el) el.scrollTop = el.scrollHeight;
+      });
+    };
+    window.addEventListener(KEYBOARD_EVENT, onKeyboard);
+    return () => window.removeEventListener(KEYBOARD_EVENT, onKeyboard);
+  }, []);
 
   useEffect(() => {
     const el = textareaRef.current;

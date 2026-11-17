@@ -4,6 +4,20 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.6.7] - 2026-11-17
+
+### Fixed
+
+- **Android 上输入法盖住输入框**：1.6.2 起界面改为 edge-to-edge（窗口不再随键盘收缩），
+  但键盘高度没有像状态栏那样下发给界面，于是聊天输入框被键盘压在下面。
+  现在原生层把 IME inset 一并发布为 `--keyboard-inset`，界面用底部内边距让出这块空间：
+  聊天输入框、弹窗里的输入框都会移到键盘上方，键盘弹出时聊天窗口自动滚到最新一条。
+- 弹窗（设置、世界书编辑等）的背景层同样让出键盘高度，底部弹出的弹窗不会再被键盘切成两半。
+
+### Notes
+
+- 单测新增 4 项覆盖键盘 inset（高度、关闭归零、缺省、变更事件）。
+
 ## [1.6.6] - 2026-11-17
 
 ### Fixed

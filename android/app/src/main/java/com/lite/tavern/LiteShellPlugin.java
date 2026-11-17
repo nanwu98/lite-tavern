@@ -40,6 +40,7 @@ public class LiteShellPlugin extends Plugin {
     private int bottom;
     private int left;
     private int right;
+    private int ime;
     private boolean measured;
     private boolean observing;
 
@@ -95,6 +96,10 @@ public class LiteShellPlugin extends Plugin {
         Insets bars =
                 insets.getInsets(
                         WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
+        // The on-screen keyboard is a separate inset: with edge-to-edge the
+        // window is not resized when it opens, so the web layer has to reserve
+        // that space itself or the composer ends up behind the keyboard.
+        Insets keyboard = insets.getInsets(WindowInsetsCompat.Type.ime());
         // WindowInsets are physical pixels; the web layer works in CSS pixels
         // (dp), so divide by the display density. Without this a 152 px status
         // bar on a 3.25x screen becomes a 152 CSS px gap.
@@ -104,17 +109,20 @@ public class LiteShellPlugin extends Plugin {
         int nextBottom = Math.round(bars.bottom / density);
         int nextLeft = Math.round(bars.left / density);
         int nextRight = Math.round(bars.right / density);
+        int nextIme = Math.round(keyboard.bottom / density);
         if (measured
                 && nextTop == top
                 && nextBottom == bottom
                 && nextLeft == left
-                && nextRight == right) {
+                && nextRight == right
+                && nextIme == ime) {
             return;
         }
         top = nextTop;
         bottom = nextBottom;
         left = nextLeft;
         right = nextRight;
+        ime = nextIme;
         measured = true;
         notifyListeners("insets", payload());
     }
@@ -125,6 +133,7 @@ public class LiteShellPlugin extends Plugin {
         data.put("bottom", bottom);
         data.put("left", left);
         data.put("right", right);
+        data.put("ime", ime);
         return data;
     }
 

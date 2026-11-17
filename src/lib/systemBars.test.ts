@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest';
-import { applyInsets, isEdgeToEdgeShell } from './systemBars';
+import { KEYBOARD_EVENT, applyInsets, isEdgeToEdgeShell } from './systemBars';
 
 describe('system bar insets', () => {
   beforeEach(() => {
@@ -40,5 +40,40 @@ describe('system bar insets', () => {
 
   it('is inert outside the Android app', () => {
     expect(isEdgeToEdgeShell()).toBe(false);
+  });
+});
+
+describe('on-screen keyboard inset', () => {
+  beforeEach(() => {
+    document.documentElement.removeAttribute('style');
+    document.documentElement.classList.remove('keyboard-open');
+  });
+
+  it('publishes the keyboard height and flags the open state', () => {
+    applyInsets({ top: 24, bottom: 16, left: 0, right: 0, ime: 312 });
+    const style = document.documentElement.style;
+    expect(style.getPropertyValue('--keyboard-inset')).toBe('312px');
+    expect(document.documentElement.classList.contains('keyboard-open')).toBe(true);
+  });
+
+  it('is zero when the keyboard is closed', () => {
+    applyInsets({ top: 24, bottom: 16, left: 0, right: 0, ime: 0 });
+    expect(document.documentElement.style.getPropertyValue('--keyboard-inset')).toBe('0px');
+    expect(document.documentElement.classList.contains('keyboard-open')).toBe(false);
+  });
+
+  it('defaults to zero for shells that do not report a keyboard', () => {
+    applyInsets({ top: 24, bottom: 16, left: 0, right: 0 });
+    expect(document.documentElement.style.getPropertyValue('--keyboard-inset')).toBe('0px');
+  });
+
+  it('announces keyboard changes so views can scroll', () => {
+    const seen: number[] = [];
+    const onKeyboard = (event: Event) => seen.push((event as CustomEvent).detail.height);
+    window.addEventListener(KEYBOARD_EVENT, onKeyboard);
+    applyInsets({ top: 0, bottom: 0, left: 0, right: 0, ime: 280 });
+    applyInsets({ top: 0, bottom: 0, left: 0, right: 0, ime: 0 });
+    window.removeEventListener(KEYBOARD_EVENT, onKeyboard);
+    expect(seen).toEqual([280, 0]);
   });
 });

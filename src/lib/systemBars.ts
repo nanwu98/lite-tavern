@@ -19,6 +19,8 @@ export interface SystemInsets {
   bottom: number;
   left: number;
   right: number;
+  /** Height of the on-screen keyboard in CSS pixels (0 when it is closed). */
+  ime?: number;
 }
 
 interface LiteShellPlugin {
@@ -30,10 +32,14 @@ interface LiteShellPlugin {
   ): Promise<PluginListenerHandle>;
 }
 
-const ZERO: SystemInsets = { top: 0, bottom: 0, left: 0, right: 0 };
+const ZERO: SystemInsets = { top: 0, bottom: 0, left: 0, right: 0, ime: 0 };
 const LiteShell = registerPlugin<LiteShellPlugin>('LiteShell');
 
+/** Fired whenever the keyboard inset changes, so views can react (scroll to bottom). */
+export const KEYBOARD_EVENT = 'lite-tavern:keyboard';
+
 let subscription: PluginListenerHandle | null = null;
+let lastIme = 0;
 
 /** True only inside the Android app (not the desktop shell or a browser). */
 export function isEdgeToEdgeShell(): boolean {
@@ -48,7 +54,7 @@ export function isEdgeToEdgeShell(): boolean {
 export function applyInsets(insets?: SystemInsets | null): void {
   const value: SystemInsets = { ...ZERO, ...(insets ?? {}) };
   const root = document.documentElement;
-  const px = (input: number) => {
+  const px = (input: number | undefined) => {
     const number = Number(input);
     return `${Number.isFinite(number) ? Math.max(0, Math.round(number)) : 0}px`;
   };
@@ -56,6 +62,15 @@ export function applyInsets(insets?: SystemInsets | null): void {
   root.style.setProperty('--safe-bottom', px(value.bottom));
   root.style.setProperty('--safe-left', px(value.left));
   root.style.setProperty('--safe-right', px(value.right));
+  // The keyboard is not a system bar: with edge-to-edge the window keeps its
+  // size when the IME opens, so the shell reserves this space itself.
+  const ime = Number.isFinite(Number(value.ime)) ? Math.max(0, Math.round(Number(value.ime))) : 0;
+  root.style.setProperty('--keyboard-inset', `${ime}px`);
+  root.classList.toggle('keyboard-open', ime > 0);
+  if (ime !== lastIme) {
+    lastIme = ime;
+    window.dispatchEvent(new CustomEvent(KEYBOARD_EVENT, { detail: { height: ime } }));
+  }
 }
 
 /** Keeps the status bar icons readable on the current theme. */
