@@ -1,0 +1,27 @@
+appId: com.lite.tavern
+productName: 轻语酒馆
+copyright: Copyright © 2026 LiteTavern
+directories:
+  output: release
+  buildResources: build
+files:
+  - dist/**/*
+  - electron/**/*
+  - build/icon.ico
+  - package.json
+  # The renderer is fully bundled by Vite and the main process only uses
+  # Electron + Node built-ins, so no runtime node_modules are needed. Excluding
+  # them also keeps the package (and its paths) short, which matters for the
+  # self-extracting launcher on Windows.
+  - "!node_modules/**/*"
+asar: true
+compression: maximum
+win:
+  target:
+    - target: dir
+      arch:
+        - x64
+  icon: build/icon.ico
+  executableName: LiteTavern
+  artifactName: LiteTavern-${version}-win-x64.${ext}
+  signAndEditExecutable: true

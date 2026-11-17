@@ -1,0 +1,62 @@
+name: Bug report
+description: 报告一个可以复现的问题
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈！请尽量把信息填全，尤其是复现步骤和版本号。
+        安全问题请不要在这里公开，见 [SECURITY.md](../blob/main/SECURITY.md)。
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 发生了什么
+      description: 实际行为，以及你期望的行为。
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 打开设置，填写 API Key
+        2. 导入角色卡 ...
+        3. 发送消息，出现 ...
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: 平台
+      options:
+        - Windows (single-file exe)
+        - Windows (unpacked LiteTavern.exe)
+        - Android (APK)
+        - 浏览器 / 开发模式 (pnpm dev)
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: 版本
+      description: 设置 → 关于与更新 里显示的版本号。
+      placeholder: 1.4.0
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志或截图
+      description: 控制台报错、截图（请先去掉 API Key、真实聊天内容等隐私信息）。
+      render: shell
+    validations:
+      required: false
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 确认
+      options:
+        - label: 我已搜索过现有 Issue，确认这不是重复问题
+          required: true
+        - label: 我已移除日志里的 API Key、账号与个人路径
+          required: true

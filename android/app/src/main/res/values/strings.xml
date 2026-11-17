@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">轻语酒馆</string>
+    <string name="title_activity_main">轻语酒馆</string>
+    <string name="package_name">com.lite.tavern</string>
+    <string name="custom_url_scheme">com.lite.tavern</string>
+</resources>

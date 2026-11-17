@@ -1,0 +1,21 @@
+# Normalise line endings so Windows and POSIX checkouts produce identical diffs.
+* text=auto eol=lf
+
+# Windows-only tooling keeps CRLF (matches .editorconfig).
+*.ps1 text eol=crlf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.cs text eol=crlf
+
+# Binaries: never try to diff or merge these.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.jar binary
+*.keystore binary
+*.jks binary
+*.exe binary
+*.apk binary
+*.zip binary
+*.woff2 binary

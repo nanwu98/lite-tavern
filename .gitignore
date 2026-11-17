@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+release/
+tmp/
+test-results/
+playwright-report/
+*.tsbuildinfo
+
+# Test artefacts
+tests/.mock-*
+tests/fixtures/sidecar/
+scripts/_shots/
+
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/keystore.properties
+android/*.keystore
+android/capacitor-cordova-android-plugins/
+
+# Local configuration, signing keys and logs
+.env
+.env.*
+*.log
+.vscode/
+.idea/
+*.iml
+.fleet/
+.DS_Store
+Thumbs.db
+
+# Tooling caches
+coverage/
+.prettiercache
+.eslintcache

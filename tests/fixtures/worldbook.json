@@ -1,0 +1,22 @@
+{
+  "entries": {
+    "0": {
+      "uid": 0,
+      "key": ["海边", "海雾"],
+      "comment": "海雾",
+      "content": "海雾里会传来不属于这个时代的船笛声，听见的人会梦见同一片海。",
+      "constant": false,
+      "position": 1,
+      "order": 20
+    },
+    "1": {
+      "uid": 1,
+      "key": [],
+      "comment": "文风",
+      "content": "叙述保持潮湿、安静、带一点旧木头的味道。",
+      "constant": true,
+      "position": 0,
+      "order": 1
+    }
+  }
+}
