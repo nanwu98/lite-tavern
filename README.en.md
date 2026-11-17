@@ -191,6 +191,8 @@ published and the APK can still be produced locally with `pnpm android:build`.
   first time you must allow "install unknown apps" for LiteTavern; Android never
   installs silently, so the last step is always yours.
 - The app only contacts the network when you press the button.
+- 1.4.0 and older have no updater, so those builds need one manual install of
+  1.5.0; after that both platforms update themselves.
 
 ### Backup and restore
 

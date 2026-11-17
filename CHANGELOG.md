@@ -25,6 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Android asks for `REQUEST_INSTALL_PACKAGES`; installation still needs an
   explicit confirmation from the user.
 
+### Notes
+
+- 1.4.0 及更早的版本没有内置更新器，老用户需要手动安装一次 1.5.0；从 1.5.0 起
+  Windows 与 Android 都能自己检查并安装后续版本。
+
 ## [1.4.0] - 2026-11-17
 
 ### Added
