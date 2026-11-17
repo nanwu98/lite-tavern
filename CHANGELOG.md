@@ -4,6 +4,19 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.6.6] - 2026-11-17
+
+### Fixed
+
+- **编辑世界书时词条列表塌陷**：词条是列表容器的 flex 子项，词条一多就被压成几像素高、
+  彼此重叠，展开后的详情也被 `overflow: hidden` 裁掉，看起来像「只能看不能改」。
+  现在每条固定自身高度、由列表内部滚动，点开某条会自动把它滚进视野；标题、关键词、
+  次要关键词、内容、插入位置、常驻/禁用等字段都能正常编辑。
+
+### Notes
+
+- E2E 补到 21 项，新增一项回归：17 条词条时每条高度正常、互不重叠，且点开后能编辑内容并保存。
+
 ## [1.6.5] - 2026-11-17
 
 ### Added

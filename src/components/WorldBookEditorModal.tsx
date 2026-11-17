@@ -42,9 +42,21 @@ function EntryEditor({
   onRemove: () => void;
 }) {
   const [open, setOpen] = useState(index === 0);
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const fieldId = (name: string) => `wb-entry-${index}-${name}`;
+
+  // The list scrolls inside the dialog, so an entry opened near the bottom has
+  // its fields below the fold; bring the whole card into view when it expands.
+  useEffect(() => {
+    if (!open) return;
+    const timer = setTimeout(() => {
+      rootRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [open]);
+
   return (
-    <div className={`wb-edit-entry ${entry.disable ? 'disabled' : ''}`}>
+    <div ref={rootRef} className={`wb-edit-entry ${entry.disable ? 'disabled' : ''}`}>
       <div className="wb-edit-head">
         <button type="button" className="wb-edit-toggle" onClick={() => setOpen((v) => !v)}>
           <span className={`wb-caret ${open ? 'open' : ''}`}>›</span>

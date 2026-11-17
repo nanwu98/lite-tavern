@@ -499,6 +499,52 @@ test.describe('desktop', () => {
     await expect(page.locator('.chat-bg')).toBeVisible();
   });
 
+  test('edits every world book entry instead of squashing the rows', async ({ page }) => {
+    await importCard(page);
+
+    await page.locator('.card-menu-btn').first().click();
+    await page.locator('.card-menu').getByRole('menuitem', { name: '新建世界书' }).click();
+    await page.locator('#wb-name').fill('词条压力测试');
+    await page.locator('#wb-entry-0-keys').fill('钟楼');
+    await page.locator('#wb-entry-0-content').fill('钟楼每夜点亮。');
+    await page.getByRole('button', { name: '创建世界书' }).click();
+    await page.waitForTimeout(500);
+
+    await page.locator('.card-menu-btn').first().click();
+    await page.locator('.card-menu').getByRole('menuitem', { name: '查看世界书' }).click();
+    await page
+      .locator('.wb-book', { hasText: '词条压力测试' })
+      .getByRole('button', { name: '编辑' })
+      .click();
+    await expect(page.locator('#wb-name')).toHaveValue('词条压力测试');
+    await expect(page.locator('.wb-edit-entry')).toHaveCount(1);
+
+    // Enough rows to overflow the list's max-height: they used to be flex
+    // items, so they shrank to a few pixels and visibly overlapped.
+    for (let i = 0; i < 16; i++) await page.locator('.wb-add-entry').click();
+    await expect(page.locator('.wb-edit-entry')).toHaveCount(17);
+    const rows = await page.locator('.wb-edit-entry').evaluateAll((els) =>
+      els.map((el) => {
+        const rect = el.getBoundingClientRect();
+        return { top: rect.top, height: rect.height };
+      }),
+    );
+    for (const row of rows) expect(row.height).toBeGreaterThan(30);
+    for (let i = 1; i < rows.length; i++) {
+      expect(rows[i].top).toBeGreaterThanOrEqual(rows[i - 1].top + rows[i - 1].height - 1);
+    }
+
+    // Every entry's details are editable, not just the order field.
+    await page.locator('.wb-edit-toggle').nth(3).click();
+    await expect(page.locator('#wb-entry-3-content')).toBeVisible();
+    await page.locator('#wb-entry-3-keys').fill('地下室');
+    await page.locator('#wb-entry-3-content').fill('地下室锁着旧档案。');
+    await page.getByRole('button', { name: '保存修改' }).click();
+
+    // The viewer now lists the new key, so the edit really reached the store.
+    await expect(page.locator('.wb-modal')).toContainText('地下室');
+  });
+
   test('shows every card on the start screen and deletes one after a second confirmation', async ({
     page,
   }) => {

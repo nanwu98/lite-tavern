@@ -2732,6 +2732,14 @@ a:hover {
   border-radius: 12px;
   background: var(--panel-2);
   overflow: hidden;
+  /*
+   * The list is a column flexbox with a max-height, so entries are flex items.
+   * Without this they shrink to fit the box instead of scrolling: with a dozen
+   * entries every row collapsed to a few pixels, the rows visually overlapped
+   * and the expanded body was clipped away by `overflow: hidden` — which made
+   * the editor look like a read-only list of blank bars.
+   */
+  flex: 0 0 auto;
 }
 
 .wb-edit-entry.disabled {
@@ -2757,6 +2765,11 @@ a:hover {
   background: transparent;
   color: var(--text);
   text-align: left;
+  cursor: pointer;
+}
+
+.wb-edit-toggle:hover .wb-title {
+  color: var(--accent);
 }
 
 .wb-edit-toggle .wb-title {
