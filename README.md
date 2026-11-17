@@ -134,6 +134,10 @@ git commit -am "release: 1.5.0" && git tag v1.5.0 && git push origin main --tags
 
 ### 检查更新
 
+<p align="center">
+  <img src="docs/update.png" width="680" alt="设置里的「关于与更新」" />
+</p>
+
 - 设置 → 关于与更新 → **检查更新**。版本清单是随 Release 一起发布的 `version.json`，
   通过 `releases/latest/download/...` 读取，不消耗 GitHub API 配额。
 - 直连 `github.com` 失败会自动改走 `ghfast.top` / `ghproxy.net` 镜像；下载完成后用清单里

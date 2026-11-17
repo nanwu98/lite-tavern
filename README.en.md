@@ -178,6 +178,10 @@ published and the APK can still be produced locally with `pnpm android:build`.
 
 ### Checking for updates
 
+<p align="center">
+  <img src="docs/update.png" width="680" alt="About &amp; updates in Settings" />
+</p>
+
 - Settings → About & updates → **Check for updates**. The version manifest is
   `version.json`, published as a release asset next to the installers and read
   through `releases/latest/download/...`, so it costs no GitHub API quota.
