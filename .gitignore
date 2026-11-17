@@ -39,3 +39,6 @@ Thumbs.db
 coverage/
 .prettiercache
 .eslintcache
+
+# Scratch space for local scripts and logs
+.tmp/
