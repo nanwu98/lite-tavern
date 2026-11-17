@@ -103,24 +103,29 @@ async function fetchJson(url) {
   return normalizeManifest(await response.json());
 }
 
-async function fetchManifest() {
-  const errors = [];
-  for (const url of manifestSources()) {
-    try {
-      return await fetchJson(url);
-    } catch (error) {
-      errors.push(error instanceof Error ? error.message : String(error));
-    }
-  }
-  throw new Error(errors[0] || '无法连接更新服务器');
-}
-
-/** Compares the running version with the manifest. Never throws. */
+/**
+ * Compares the running version with the manifest. Never throws.
+ *
+ * Sources are tried in order, skipping a mirror whose cached manifest has no
+ * Windows installer (a mirror that cached `version.json` before the installer
+ * was re-uploaded would otherwise offer a download with nothing behind it).
+ */
 async function checkForUpdates() {
   const current = app.getVersion();
-  try {
-    const manifest = await fetchManifest();
-    if (compareVersions(manifest.version, current) > 0) {
+  const errors = [];
+  let fallback = null;
+  for (const url of manifestSources()) {
+    let manifest;
+    try {
+      manifest = await fetchJson(url);
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : String(error));
+      continue;
+    }
+    if (compareVersions(manifest.version, current) <= 0) {
+      return { status: 'up-to-date', current, latest: manifest.version };
+    }
+    if (manifest.windows?.file) {
       return {
         status: 'available',
         current,
@@ -130,14 +135,16 @@ async function checkForUpdates() {
         asset: manifest.windows,
       };
     }
-    return { status: 'up-to-date', current, latest: manifest.version };
-  } catch (error) {
-    return {
-      status: 'error',
+    fallback ??= {
+      status: 'available',
       current,
-      error: error instanceof Error ? error.message : String(error),
+      latest: manifest.version,
+      notes: manifest.notes,
+      publishedAt: manifest.publishedAt,
     };
   }
+  if (fallback) return fallback;
+  return { status: 'error', current, error: errors[0] || '无法连接更新服务器' };
 }
 
 function sha256File(file) {

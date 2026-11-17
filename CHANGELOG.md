@@ -4,6 +4,15 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.6.1] - 2026-11-17
+
+### Fixed
+
+- 检查更新时会拿到「镜像缓存里的旧清单」：例如 APK 刚替换过，`ghfast.top` 还在返回
+  没有 android 项的 `version.json`，下载按钮点了没有反应。现在会跳过缺少当前平台
+  安装包的清单、继续试下一个来源；只有全部来源都缺安装包时才提示「去发布页下载」，
+  不再出现点了没反应的按钮。
+
 ## [1.6.0] - 2026-11-17
 
 ### Added

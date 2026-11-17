@@ -1,8 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   assetSources,
+  checkForUpdates,
   compareVersions,
   formatDownloadSize,
+  hasAssetFor,
   manifestSources,
   platformKey,
   releasePageUrl,
@@ -66,5 +68,68 @@ describe('helpers', () => {
     expect(formatDownloadSize(0)).toBe('');
     expect(formatDownloadSize(110 * 1024 * 1024)).toBe('110 MB');
     expect(formatDownloadSize(512 * 1024)).toBe('512 KB');
+  });
+});
+
+describe('manifest selection', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const stale = { version: '9.9.9', windows: { file: 'x.exe', size: 1, sha256: 'a' } };
+  const fresh = {
+    version: '9.9.9',
+    windows: { file: 'x.exe', size: 1, sha256: 'a' },
+    android: { file: 'x.apk', size: 1, sha256: 'b' },
+  };
+
+  function mockFetch(byUrl: (url: string) => unknown) {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => ({
+        ok: true,
+        json: async () => byUrl(String(url)),
+      })),
+    );
+  }
+
+  it('skips mirrors whose cached manifest has no installer for this platform', async () => {
+    // GitHub and the first mirror still carry the pre-upload manifest.
+    mockFetch((url) => (url.includes('ghproxy.net') ? fresh : stale));
+    const result = await checkForUpdates('1.0.0', 'android', 'someone/lite-tavern');
+    expect(result.status).toBe('available');
+    expect(result.asset?.file).toBe('x.apk');
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(3);
+  });
+
+  it('still reports the update when no source has the installer', async () => {
+    mockFetch(() => stale);
+    const result = await checkForUpdates('1.0.0', 'android', 'someone/lite-tavern');
+    expect(result.status).toBe('available');
+    expect(result.asset).toBeUndefined();
+    expect(result.latest).toBe('9.9.9');
+  });
+
+  it('reports up-to-date without asking the remaining mirrors', async () => {
+    mockFetch(() => fresh);
+    const result = await checkForUpdates('9.9.9', 'android', 'someone/lite-tavern');
+    expect(result.status).toBe('up-to-date');
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports an error when every source fails', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: false, status: 502, json: async () => ({}) })),
+    );
+    const result = await checkForUpdates('1.0.0', 'android', 'someone/lite-tavern');
+    expect(result.status).toBe('error');
+    expect(result.error).toContain('502');
+  });
+
+  it('knows whether a manifest carries this platform', () => {
+    expect(hasAssetFor(fresh, 'android')).toBe(true);
+    expect(hasAssetFor(fresh, 'win32')).toBe(true);
+    expect(hasAssetFor(stale, 'android')).toBe(false);
   });
 });

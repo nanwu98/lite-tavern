@@ -137,50 +137,63 @@ async function fetchJson(url: string): Promise<UpdateManifest> {
   }
 }
 
-/** Fetches the manifest, trying every source before reporting the last error. */
-export async function fetchManifest(slug = repositorySlug()): Promise<UpdateManifest> {
-  const errors: string[] = [];
-  for (const url of manifestSources(slug)) {
-    try {
-      return await fetchJson(url);
-    } catch (error) {
-      errors.push(error instanceof Error ? error.message : String(error));
-    }
-  }
-  throw new Error(errors[0] || '无法连接更新服务器');
-}
-
 export function platformKey(platform: string): 'android' | 'windows' {
   return platform === 'android' ? 'android' : 'windows';
 }
 
-/** Compares the manifest with `current` and picks the installer for `platform`. */
+export function hasAssetFor(manifest: UpdateManifest, platform: string): boolean {
+  return Boolean(manifest[platformKey(platform)]?.file);
+}
+
+/**
+ * Compares the manifest with `current`.
+ *
+ * Sources are tried in order, and a source whose manifest has no installer for
+ * this platform is skipped: mirrors cache release assets, and a manifest cached
+ * just before a file was re-uploaded would otherwise offer a download button
+ * with nothing behind it. If no source has the installer, the update is still
+ * reported (without `asset`) so the UI can point at the release page.
+ */
 export async function checkForUpdates(
   current: string,
   platform: string,
   slug = repositorySlug(),
 ): Promise<UpdateCheck> {
-  try {
-    const manifest = await fetchManifest(slug);
+  const errors: string[] = [];
+  let fallback: UpdateCheck | undefined;
+  for (const url of manifestSources(slug)) {
+    let manifest: UpdateManifest;
+    try {
+      manifest = await fetchJson(url);
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : String(error));
+      continue;
+    }
     const latest = manifest.version;
-    if (compareVersions(latest, current) > 0) {
+    if (compareVersions(latest, current) <= 0) {
+      return { status: 'up-to-date', current, latest };
+    }
+    const asset = manifest[platformKey(platform)];
+    if (asset?.file) {
       return {
         status: 'available',
         current,
         latest,
         notes: manifest.notes,
         publishedAt: manifest.publishedAt,
-        asset: manifest[platformKey(platform)],
+        asset,
       };
     }
-    return { status: 'up-to-date', current, latest };
-  } catch (error) {
-    return {
-      status: 'error',
+    fallback ??= {
+      status: 'available',
       current,
-      error: error instanceof Error ? error.message : String(error),
+      latest,
+      notes: manifest.notes,
+      publishedAt: manifest.publishedAt,
     };
   }
+  if (fallback) return fallback;
+  return { status: 'error', current, error: errors[0] || '无法连接更新服务器' };
 }
 
 /* -------------------------------------------------------------------------- */

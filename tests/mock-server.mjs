@@ -94,7 +94,11 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify({ error: { message: 'bad json' } }));
       return;
     }
-    fs.writeFileSync(LAST, JSON.stringify(body, null, 2));
+    // Written atomically: tests read this file while requests are still being
+    // served, and a truncate-then-write would hand them half a JSON document.
+    const lastTmp = `${LAST}.tmp`;
+    fs.writeFileSync(lastTmp, JSON.stringify(body, null, 2));
+    fs.renameSync(lastTmp, LAST);
     fs.appendFileSync(LOG, `${JSON.stringify({ at: Date.now(), body })}\n`);
 
     // Summarizer round of the context compaction feature.

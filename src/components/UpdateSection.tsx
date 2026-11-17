@@ -179,16 +179,23 @@ export function UpdateSection() {
             </span>
           </div>
           {check?.notes && <pre className="update-notes">{check.notes}</pre>}
-          <button
-            type="button"
-            className="btn btn-accent"
-            onClick={() => void download()}
-            disabled={busy || (phase !== 'ready' && phase !== 'idle' && phase !== 'done')}
-          >
-            <IconDownload width={15} height={15} /> {desktop ? '下载并安装' : '下载并安装 APK'}
-          </button>
-          {!asset && (
-            <p className="settings-hint">这个版本还没有为当前平台提供安装包，请到发布页下载。</p>
+          {asset ? (
+            <button
+              type="button"
+              className="btn btn-accent"
+              onClick={() => void download()}
+              disabled={busy || (phase !== 'ready' && phase !== 'idle' && phase !== 'done')}
+            >
+              <IconDownload width={15} height={15} /> {desktop ? '下载并安装' : '下载并安装 APK'}
+            </button>
+          ) : (
+            <p className="settings-hint">
+              当前线路拿到的清单里还没有这个平台的安装包（镜像可能还在缓存旧清单）。可以到{' '}
+              <a href={releasePageUrl()} target="_blank" rel="noreferrer">
+                发布页
+              </a>{' '}
+              下载，或稍后再检查一次。
+            </p>
           )}
         </div>
       )}
