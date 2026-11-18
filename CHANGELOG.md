@@ -4,7 +4,7 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [1.7.0] - 2026-11-18
+## [1.7.1] - 2026-11-18
 
 ### Added
 
@@ -23,6 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **对话列表搜索框图标压住文字**：通用输入框样式把搜索框的左内边距重置成了
   10px，放大镜正好落在「搜索对话…」上。现在搜索框保留 36px 左内边距，
   图标与占位文字之间留出明确间隔。
+- **Windows 单文件启动器可能启动旧版本**：启动器里原本写死了版本号，新一轮打包
+  若忘了改，新安装包会解压并运行上一个版本目录。现在版本号在构建时从
+  `package.json` 注入，不会再出现启动器与安装包版本不一致。
 
 ### Changed
 

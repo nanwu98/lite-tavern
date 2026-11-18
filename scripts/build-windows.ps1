@@ -37,12 +37,21 @@ Pop-Location
 Write-Host '==> 4/4 生成单文件启动器 =='
 $out = Join-Path (Get-Location) "release\LiteTavern-$version-win-x64.exe"
 Remove-Item $out -Force -ErrorAction SilentlyContinue
+# The launcher's version must follow package.json. It used to be hard-coded,
+# which made a new installer extract and run the previous version's folder.
+$launcherGenerated = Join-Path (Get-Location) 'tmp\Launcher.generated.cs'
+New-Item -ItemType Directory -Force -Path (Join-Path (Get-Location) 'tmp') | Out-Null
+$launcherCode = (Get-Content (Join-Path (Get-Location) 'scripts\Launcher.cs') -Raw -Encoding UTF8).Replace(
+  '__APP_VERSION__',
+  $version
+)
+Set-Content -Path $launcherGenerated -Value $launcherCode -Encoding utf8
 & $csc /nologo /target:winexe /platform:anycpu /optimize+ /codepage:65001 `
   "/win32icon:$(Join-Path (Get-Location) 'build\icon.ico')" `
   "/resource:$zip,LiteTavern.app.zip" `
   /r:System.dll /r:System.Core.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll `
   /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll `
-  "/out:$out" (Join-Path (Get-Location) 'scripts\Launcher.cs')
+  "/out:$out" $launcherGenerated
 if ($LASTEXITCODE -ne 0) { throw 'csc 编译失败' }
 
 Get-Item $out | ForEach-Object { Write-Host "完成：$($_.FullName)（$([math]::Round($_.Length / 1MB, 1)) MB）" }
