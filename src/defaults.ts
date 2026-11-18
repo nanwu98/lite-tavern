@@ -10,6 +10,7 @@ export const DEFAULT_SETTINGS: Settings = {
   temperature: 1.1,
   maxTokens: 2048,
   userName: '旅人',
+  userAvatar: '',
   userPersona: '',
   contextMessages: 40,
   contextLimit: 1_000_000,

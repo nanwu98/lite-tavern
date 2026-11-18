@@ -256,6 +256,30 @@ test.describe('desktop', () => {
     await page.screenshot({ path: path.join(SHOTS, 'desktop-swipes.png') });
   });
 
+  test('highlights quoted dialogue and shows a user avatar only after upload', async ({ page }) => {
+    await importCard(page);
+    await dismissToasts(page);
+    await configureApi(page);
+
+    await sendAndWait(page, '「我来了。」');
+    // SillyTavern's quote rule: the marks and the text between them are coloured.
+    await expect(page.locator('.bubble-assistant').last().locator('.quote')).toHaveText(
+      '「跟紧我，别踩湿的那几级。」',
+    );
+    await expect(page.locator('.bubble-user').last().locator('.quote')).toHaveText('「我来了。」');
+    // No avatar is uploaded yet, so user bubbles stay avatar-less as before.
+    await expect(page.locator('.msg-user .avatar')).toHaveCount(0);
+
+    await dismissToasts(page);
+    await page.locator('.chat-actions button[title="设置"]').click();
+    await page.locator('#user-avatar-input').setInputFiles(PNG);
+    await expect(page.locator('.user-avatar-picker img')).toBeVisible();
+    await page.getByRole('button', { name: '保存设置' }).click();
+    await expect(page.locator('.msg-user .avatar').last()).toBeVisible();
+
+    await page.screenshot({ path: path.join(SHOTS, 'desktop-quotes-avatar.png') });
+  });
+
   test('creates and edits a card and a world book by hand, and keeps the theme', async ({
     page,
   }) => {
@@ -858,5 +882,22 @@ test.describe('mobile', () => {
     );
     expect(overflow).toBeLessThanOrEqual(1);
     await page.screenshot({ path: path.join(SHOTS, 'mobile-chat-reply.png') });
+  });
+
+  test('editing a message hides the composer so nothing covers the editor', async ({ page }) => {
+    await importCard(page);
+    await dismissToasts(page);
+    await configureApi(page);
+    await sendAndWait(page, '钟楼里有什么？');
+
+    const assistantRow = page.locator('.msg-assistant').last();
+    await assistantRow.locator('.meta-btn[title="编辑这条消息"]').click();
+    await expect(assistantRow.getByLabel('编辑消息')).toBeVisible();
+    await expect(page.locator('.chat-view')).toHaveClass(/is-editing-message/);
+    await expect(page.locator('.composer-wrap')).toBeHidden();
+
+    await assistantRow.getByRole('button', { name: '取消' }).click();
+    await expect(page.locator('.composer-wrap')).toBeVisible();
+    await expect(page.locator('.chat-view')).not.toHaveClass(/is-editing-message/);
   });
 });

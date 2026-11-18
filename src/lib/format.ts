@@ -1,5 +1,6 @@
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
+import { highlightQuotedHtml } from './quotes';
 
 marked.setOptions({ gfm: true, breaks: true });
 let hookInstalled = false;
@@ -20,6 +21,14 @@ export function renderMarkdown(text: string): string {
     USE_PROFILES: { html: true },
     FORBID_TAGS: ['style', 'iframe', 'form', 'input', 'button'],
   });
+}
+
+/**
+ * Markdown for a chat message: sanitized HTML plus the quoted-dialogue
+ * highlight (the same rule SillyTavern applies to `.mes_text q`).
+ */
+export function renderMessageMarkdown(text: string): string {
+  return highlightQuotedHtml(renderMarkdown(text));
 }
 
 export async function copyText(text: string): Promise<boolean> {

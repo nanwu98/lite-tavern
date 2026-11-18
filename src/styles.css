@@ -29,6 +29,9 @@
   --error-text: #e6bebb;
   --em: #e6cdb6;
   --strong: #fff7ec;
+  /* Colour of quoted dialogue inside a message (SillyTavern's quote colour). */
+  --quote: #f0b061;
+  --quote-on-user: #6f2a08;
   --radius: 14px;
   --glass: rgba(255, 255, 255, 0.045);
   --glass-strong: rgba(255, 255, 255, 0.075);
@@ -2119,6 +2122,12 @@ a:hover {
     margin-top: 19px;
   }
 
+  .msg-user .avatar {
+    width: 28px !important;
+    height: 28px !important;
+    min-width: 28px !important;
+  }
+
   .bubble {
     padding: 10px 12px;
     font-size: 13.5px;
@@ -2131,6 +2140,13 @@ a:hover {
 
   .composer-wrap {
     padding: 6px 10px calc(8px + env(safe-area-inset-bottom));
+  }
+
+  /* While a message is being edited, the composer is not needed and would
+     cover the editor once the keyboard lifts the layout. Hiding it gives the
+     editor the full space above the keyboard (1.6.8). */
+  .chat-view.is-editing-message .composer-wrap {
+    display: none;
   }
 
   .composer {
@@ -2614,6 +2630,23 @@ a:hover {
   cursor: text;
 }
 
+/* Quoted dialogue: SillyTavern wraps it in <q> and colours it with
+   --SmartThemeQuoteColor. We wrap it in .quote after markdown instead. */
+.quote {
+  color: var(--quote);
+}
+
+.bubble-user .quote {
+  color: var(--quote-on-user);
+}
+
+/* The user's own avatar is optional: it only appears once one was uploaded. */
+.msg-user .avatar {
+  border-radius: 11px;
+  flex: 0 0 auto;
+  margin-top: 0;
+}
+
 /* --------------------------------------------------------------- *
  * Manual card / world book editing
  * --------------------------------------------------------------- */
@@ -2676,6 +2709,47 @@ a:hover {
 .avatar-picker-empty small {
   font-size: 11px;
   color: var(--muted);
+}
+
+/* Optional avatar for the user's own messages (设置 → 你的称呼). */
+.user-avatar-field {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  /* Keep a clear gap from the name/temperature row above and the persona
+     field below; sitting flush against the input looked cramped. */
+  margin: 18px 0 8px;
+  padding: 11px 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: 13px;
+  background: var(--tint-weak);
+}
+
+.user-avatar-picker {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+}
+
+.user-avatar-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.user-avatar-copy strong {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+
+.user-avatar-copy .field-hint {
+  margin: 0;
+}
+
+.user-avatar-copy .link-btn {
+  align-self: flex-start;
 }
 
 .card-editor-top-fields {
@@ -2856,6 +2930,8 @@ a:hover {
   --error-text: #8f3a34;
   --em: #8a6a4a;
   --strong: #2b221b;
+  --quote: #9c5216;
+  --quote-on-user: #6f2a08;
   --glass: rgba(255, 255, 255, 0.55);
   --glass-strong: rgba(255, 255, 255, 0.8);
   --hairline: rgba(62, 40, 20, 0.1);

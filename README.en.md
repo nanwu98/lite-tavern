@@ -76,6 +76,12 @@ group chat, no plugin store, no cloud sync — just the story.
 - **Layout (1.6.5+)**: both desktop side panels collapse to the window edge, leaving a
   slim handle to bring them back, and the choice is remembered. The card menu (⋯) is a
   proper overlay that closes on an outside click.
+- **Quoted dialogue (1.6.8+)**: text inside `""`, `“”`, `«»`, `「」`, `『』` or `＂＂` is
+  tinted warm orange in both AI and user messages, following SillyTavern's rule; quotes
+  inside code blocks are left alone.
+- **Your own avatar (1.6.8+)**: Settings → Roleplay → under your name you can upload,
+  replace or remove an avatar. Once set, your messages show it next to the bubble; with
+  no avatar the layout stays exactly as before.
 - **In-app updates (1.5.0+, silent check on launch since 1.6.4)**: the app checks
   for a release in the background at startup and lights a small red dot on the
   settings button when one exists; Settings → About & updates shows the version,

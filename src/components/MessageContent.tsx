@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { renderMarkdown } from '../lib/format';
+import { renderMessageMarkdown } from '../lib/format';
 import { FrontendFrame } from './FrontendFrame';
 import { splitMessageContent } from '../lib/tavern/render';
 
@@ -30,7 +30,7 @@ export function MessageContent({
     return (
       <div
         className="markdown"
-        dangerouslySetInnerHTML={{ __html: renderMarkdown(segments[0].text) }}
+        dangerouslySetInnerHTML={{ __html: renderMessageMarkdown(segments[0].text) }}
       />
     );
   }
@@ -49,7 +49,7 @@ export function MessageContent({
           <div
             key={`md-${index}`}
             className="markdown"
-            dangerouslySetInnerHTML={{ __html: renderMarkdown(segment.text) }}
+            dangerouslySetInnerHTML={{ __html: renderMessageMarkdown(segment.text) }}
           />
         ) : null,
       )}

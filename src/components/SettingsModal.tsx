@@ -16,6 +16,7 @@ import {
 } from '../lib/providers';
 import { backupFileName, parseBackup, statsSummary, type BackupPayload } from '../lib/backup';
 import { pickTextFile, saveTextFile } from '../lib/backupFile';
+import { blobToDataUrl, shrinkDataUrl } from '../lib/image';
 import {
   IconAlert,
   IconArchive,
@@ -58,6 +59,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const apiKeyRef = useRef(settings.apiKey);
   const apiKeyInputRef = useRef<HTMLInputElement | null>(null);
   const backupInputRef = useRef<HTMLInputElement | null>(null);
+  const userAvatarInputRef = useRef<HTMLInputElement | null>(null);
   const exportBackup = useStore((s) => s.exportBackup);
   const importBackup = useStore((s) => s.importBackup);
   const [backupCards, setBackupCards] = useState(true);
@@ -130,6 +132,22 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   }, [open, settings]);
 
   const patch = (p: Partial<Settings>) => setDraft((d) => ({ ...d, ...p }));
+
+  const pickUserAvatar = async (file: File | null) => {
+    if (!file) return;
+    if (!/^image\//i.test(file.type)) {
+      toast('请选择图片文件', 'error');
+      return;
+    }
+    try {
+      const url = await blobToDataUrl(file);
+      // Same downscale as character avatars: settings live in the same
+      // IndexedDB document, so a phone photo must not be stored at full size.
+      patch({ userAvatar: await shrinkDataUrl(url) });
+    } catch {
+      toast('头像读取失败', 'error');
+    }
+  };
 
   const readApiKey = () => (apiKeyInputRef.current?.value ?? apiKeyRef.current).trim();
 
@@ -445,6 +463,51 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                 onChange={(e) => patch({ temperature: Number(e.target.value) })}
               />
             </div>
+          </div>
+          <div className="user-avatar-field">
+            <button
+              type="button"
+              className="avatar-picker user-avatar-picker"
+              onClick={() => userAvatarInputRef.current?.click()}
+              title={draft.userAvatar ? '更换本人头像' : '上传本人头像'}
+            >
+              {draft.userAvatar ? (
+                <img src={draft.userAvatar} alt="本人头像" />
+              ) : (
+                <span className="avatar-picker-empty">
+                  ＋<small>头像</small>
+                </span>
+              )}
+            </button>
+            <div className="user-avatar-copy">
+              <strong>本人头像（可选）</strong>
+              <p className="field-hint">
+                {draft.userAvatar
+                  ? '点击左边的头像可以换一张，保存后聊天里你发的消息就带上这个头像。'
+                  : '上传后聊天里你发的消息会显示这个头像；不上传就保持现在的样子，不带头像。'}
+              </p>
+              {draft.userAvatar && (
+                <button
+                  type="button"
+                  className="link-btn"
+                  onClick={() => patch({ userAvatar: undefined })}
+                >
+                  移除头像
+                </button>
+              )}
+            </div>
+            <input
+              ref={userAvatarInputRef}
+              id="user-avatar-input"
+              type="file"
+              accept="image/*"
+              hidden
+              onChange={(e) => {
+                const file = e.target.files?.[0] ?? null;
+                e.target.value = '';
+                void pickUserAvatar(file);
+              }}
+            />
           </div>
           <div className="field">
             <label htmlFor="user-persona">你的设定（可选，会以 {'{{user}}'} 身份写入提示词）</label>

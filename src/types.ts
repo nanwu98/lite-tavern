@@ -171,6 +171,8 @@ export interface Settings {
   temperature: number;
   maxTokens: number;
   userName: string;
+  /** Data URL of the user's own avatar; shown next to their messages when set. */
+  userAvatar?: string;
   userPersona: string;
   contextMessages: number;
   /** Model context window in tokens; used by the 80% auto-compact trigger. */

@@ -21,6 +21,7 @@ import {
   IconTrash,
 } from './Icons';
 import { copyText } from '../lib/format';
+import { highlightQuotedText } from '../lib/quotes';
 import { formatTime } from '../lib/util';
 import { formatLimit, formatTokenCount } from '../lib/tokens';
 import { contextUsage, AUTO_COMPACT_RATIO } from '../lib/compact';
@@ -28,7 +29,7 @@ import { settingsForChat } from '../lib/chatSettings';
 import { MessageContent } from './MessageContent';
 import { ScriptButtonBar, ScriptHost } from './ScriptHost';
 import { displayText } from '../lib/tavern/display';
-import { KEYBOARD_EVENT } from '../lib/systemBars';
+import { isEdgeToEdgeShell, KEYBOARD_EVENT } from '../lib/systemBars';
 import { chatActions } from '../lib/tavern/bus';
 import { eventBus, tavern_events } from '../lib/tavern/events';
 import { ensureChatScope } from '../lib/tavern/variables';
@@ -99,6 +100,7 @@ function MessageRow({
   onShowLore,
   onSelectSwipe,
   onEdit,
+  onEditingChange,
 }: {
   message: ChatMessage;
   character: Character;
@@ -113,6 +115,8 @@ function MessageRow({
   onShowLore: (titles: string[]) => void;
   onSelectSwipe: (index: number) => void;
   onEdit: (text: string) => void;
+  /** Lets the chat view hide the composer while a message editor is open. */
+  onEditingChange: (editing: boolean) => void;
 }) {
   const toast = useStore((s) => s.toast);
   const settings = useStore((s) => s.settings);
@@ -134,6 +138,15 @@ function MessageRow({
     el.style.height = 'auto';
     el.style.height = `${Math.min(420, el.scrollHeight)}px`;
     el.setSelectionRange(el.value.length, el.value.length);
+    // The message may be anywhere in a long history: bring the editor into the
+    // visible area instead of leaving it behind the (now hidden) composer.
+    const reveal = () => editRef.current?.scrollIntoView({ block: 'center' });
+    const timer = window.setTimeout(reveal, 60);
+    window.addEventListener(KEYBOARD_EVENT, reveal);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener(KEYBOARD_EVENT, reveal);
+    };
   }, [editing]);
 
   const copy = async () => {
@@ -149,6 +162,12 @@ function MessageRow({
   const startEdit = () => {
     setDraft(message.content);
     setEditing(true);
+    onEditingChange(true);
+  };
+
+  const stopEdit = () => {
+    setEditing(false);
+    onEditingChange(false);
   };
 
   const saveEdit = () => {
@@ -158,7 +177,7 @@ function MessageRow({
       return;
     }
     onEdit(text);
-    setEditing(false);
+    stopEdit();
   };
 
   const editor = (
@@ -175,7 +194,7 @@ function MessageRow({
         onKeyDown={(e) => {
           if (e.key === 'Escape') {
             e.preventDefault();
-            setEditing(false);
+            stopEdit();
           }
           if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
             e.preventDefault();
@@ -187,7 +206,7 @@ function MessageRow({
       />
       <div className="msg-editor-actions">
         <span className="muted msg-editor-hint">Ctrl + Enter 保存 · Esc 取消</span>
-        <button className="btn btn-small btn-ghost" onClick={() => setEditing(false)}>
+        <button className="btn btn-small btn-ghost" onClick={stopEdit}>
           取消
         </button>
         <button className="btn btn-small btn-accent" onClick={saveEdit}>
@@ -204,9 +223,11 @@ function MessageRow({
           {editing ? (
             editor
           ) : (
-            <div className="bubble bubble-user" onDoubleClick={startEdit}>
-              {message.content}
-            </div>
+            <div
+              className="bubble bubble-user"
+              onDoubleClick={startEdit}
+              dangerouslySetInnerHTML={{ __html: highlightQuotedText(message.content) }}
+            />
           )}
           <div className="msg-meta meta-right">
             <SwipeControls message={message} onSelect={onSelectSwipe} />
@@ -221,6 +242,14 @@ function MessageRow({
             </button>
           </div>
         </div>
+        {settings.userAvatar && (
+          <Avatar
+            src={settings.userAvatar}
+            name={settings.userName || '你'}
+            size={34}
+            className="msg-user-avatar"
+          />
+        )}
       </div>
     );
   }
@@ -344,6 +373,8 @@ export function ChatView({
   const [contextOpen, setContextOpen] = useState(false);
   const [chatSettingsOpen, setChatSettingsOpen] = useState(false);
   const [confirmClearMemory, setConfirmClearMemory] = useState(false);
+  /** Set while a message is being edited; the composer makes room for it. */
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const stickRef = useRef(true);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -404,6 +435,7 @@ export function ChatView({
 
   useEffect(() => {
     setInput('');
+    setEditingMessageId(null);
     stickRef.current = true;
     requestAnimationFrame(() => {
       const el = scrollRef.current;
@@ -419,8 +451,14 @@ export function ChatView({
 
   // When the on-screen keyboard opens the composer moves up; keep the newest
   // message in view instead of leaving the reader where they were.
+  //
+  // While a message is being edited this must NOT scroll to the newest message:
+  // that is what used to push the editor out of view (and under the composer)
+  // on Android. The editor reveals itself instead (MessageRow listens for the
+  // same keyboard event), so here we only leave the scroll position alone.
   useEffect(() => {
     const onKeyboard = () => {
+      if (editingMessageId) return;
       if (!stickRef.current) return;
       requestAnimationFrame(() => {
         const el = scrollRef.current;
@@ -429,7 +467,7 @@ export function ChatView({
     };
     window.addEventListener(KEYBOARD_EVENT, onKeyboard);
     return () => window.removeEventListener(KEYBOARD_EVENT, onKeyboard);
-  }, []);
+  }, [editingMessageId]);
 
   useEffect(() => {
     const el = textareaRef.current;
@@ -467,7 +505,11 @@ export function ChatView({
   const lastAssistant = [...chat.messages].reverse().find((m) => m.role === 'assistant');
 
   return (
-    <main className={`chat-view ${backgroundImage ? 'has-bg' : ''}`}>
+    <main
+      className={`chat-view ${backgroundImage ? 'has-bg' : ''} ${
+        editingMessageId ? 'is-editing-message' : ''
+      }`}
+    >
       {backgroundImage && (
         <div
           className="chat-bg"
@@ -565,6 +607,12 @@ export function ChatView({
                 editMessage(chat.id, message.id, text);
                 toast('已保存，修改会作为历史对话发给模型', 'success');
               }}
+              onEditingChange={(editing) =>
+                setEditingMessageId((current) => {
+                  if (editing) return message.id;
+                  return current === message.id ? null : current;
+                })
+              }
             />
           ))}
           {busy && !chat.messages.some((m) => m.id === streamingMessageId) && (
@@ -603,8 +651,11 @@ export function ChatView({
         </div>
         <div className="composer-hint">
           <span>
-            Enter 发送 · Shift + Enter 换行
-            {books.length > 0 ? ` · 已挂载 ${books.length} 本世界书` : ' · 未挂载世界书'}
+            {/* Desktop only: on Android the Enter hint is noise — the send
+                button is right there and the on-screen keyboard has its own
+                newline key. */}
+            {!isEdgeToEdgeShell() && 'Enter 发送 · Shift + Enter 换行 · '}
+            {books.length > 0 ? `已挂载 ${books.length} 本世界书` : '未挂载世界书'}
           </span>
           <button className="link-btn" onClick={onDeleteChat}>
             <IconTrash width={13} height={13} /> 删除对话
