@@ -13,6 +13,12 @@ export default defineConfig({
     // `npx playwright install chromium` on machines without Edge.
     channel: (process.env.PLAYWRIGHT_CHANNEL as 'msedge' | 'chromium' | undefined) || 'msedge',
     headless: true,
+    // The drawer gesture is a horizontal swipe. Desktop Chromium reserves that
+    // gesture for browser back/forward history and would navigate to
+    // about:blank instead; the WebView shell has no such browser chrome.
+    launchOptions: {
+      args: ['--disable-features=OverscrollHistoryNavigation'],
+    },
     viewport: { width: 1440, height: 900 },
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',

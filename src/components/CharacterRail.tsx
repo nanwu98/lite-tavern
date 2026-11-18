@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Character, WorldBook } from '../types';
 import { Avatar } from './Avatar';
+import { Pager } from './Pager';
 import { IconBook, IconChevronRight, IconEdit, IconPlus, IconSparkles, IconTrash } from './Icons';
 import { truncate } from '../lib/util';
+import { paginate } from '../lib/pagination';
 
 interface CharacterRailProps {
   characters: Character[];
@@ -21,7 +23,12 @@ interface CharacterRailProps {
   onDeleteCharacter: (character: Character) => void;
   /** Desktop only: hides the panel and leaves a restore handle. */
   onCollapse?: () => void;
+  /** True while the phone drawer is open; used to jump to the active card. */
+  opened?: boolean;
 }
+
+/** Cards per page in the rail; roughly what fits above the fold on a phone. */
+const RAIL_PAGE_SIZE = 8;
 
 /** Where the card menu is anchored; it lives in a body portal, not in the card. */
 interface MenuPlacement {
@@ -52,12 +59,39 @@ export function CharacterRail({
   onViewWorldBooks,
   onDeleteCharacter,
   onCollapse,
+  opened,
 }: CharacterRailProps) {
   const [menu, setMenu] = useState<MenuPlacement | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [worldTarget, setWorldTarget] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const listRef = useRef<HTMLDivElement | null>(null);
   const cardInputId = 'card-file-input';
   const worldInputId = 'world-file-input';
+
+  const sorted = useMemo(
+    () => [...characters].sort((a, b) => b.createdAt - a.createdAt),
+    [characters],
+  );
+  const {
+    page: safePage,
+    pageCount,
+    items: pageCharacters,
+  } = paginate(sorted, page, RAIL_PAGE_SIZE);
+  const activeIndex = activeCharacterId
+    ? sorted.findIndex((character) => character.id === activeCharacterId)
+    : -1;
+
+  // Open the drawer on the page that holds the current conversation's card, so
+  // a 60-card library does not require scrolling down to find it.
+  useEffect(() => {
+    if (activeIndex < 0) return;
+    setPage(Math.floor(activeIndex / RAIL_PAGE_SIZE));
+  }, [activeIndex, opened]);
+
+  useEffect(() => {
+    listRef.current?.scrollTo({ top: 0 });
+  }, [safePage]);
 
   /**
    * Opens the card menu as a body-level portal.
@@ -182,7 +216,7 @@ export function CharacterRail({
         />
       </div>
 
-      <div className="list-scroll card-scroll">
+      <div className="list-scroll card-scroll" ref={listRef}>
         {characters.length === 0 ? (
           <div className="panel-empty card-empty">
             <div className="empty-orbit">
@@ -210,80 +244,86 @@ export function CharacterRail({
             </div>
           </div>
         ) : (
-          [...characters]
-            .sort((a, b) => b.createdAt - a.createdAt)
-            .map((character) => {
-              const books = booksOf(character);
-              const entryCount = books.reduce((n, b) => n + b.entries.length, 0);
-              const needsWorld = character.worldName && books.length === 0;
-              return (
-                <div
-                  key={character.id}
-                  className={`character-card ${character.id === activeCharacterId ? 'active' : ''}`}
-                  onClick={() => onOpenCharacter(character.id)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => e.key === 'Enter' && onOpenCharacter(character.id)}
-                >
-                  <Avatar src={character.avatar} name={character.name} size={52} />
-                  <div className="card-main">
-                    <div className="card-name">{character.name}</div>
-                    <div className="card-desc">
-                      {character.notes
-                        ? truncate(character.notes.replace(/\s+/g, ' '), 64)
-                        : character.description
-                          ? truncate(
-                              character.description
-                                .replace(/\{\{char\}\}/gi, character.name)
-                                .replace(/\{\{user\}\}/gi, '你')
-                                .replace(/\s+/g, ' '),
-                              64,
-                            )
-                          : character.personality
-                            ? truncate(character.personality.replace(/\s+/g, ' '), 64)
-                            : '没有填写角色描述'}
-                    </div>
-                    <div className="card-tags">
-                      {entryCount > 0 ? (
-                        <span className="tag tag-book">
-                          <IconBook width={11} height={11} /> 世界书 {entryCount}
-                        </span>
-                      ) : needsWorld ? (
-                        <span className="tag tag-warn">缺少世界书</span>
-                      ) : (
-                        <span className="tag tag-ghost">无世界书</span>
-                      )}
-                      {character.tags.slice(0, 2).map((tag) => (
-                        <span className="tag tag-ghost" key={tag}>
-                          {tag}
-                        </span>
-                      ))}
-                      {character.code?.scripts?.some((s) => s.enabled) && (
-                        <span className="card-script-tag">含脚本</span>
-                      )}
-                    </div>
+          pageCharacters.map((character) => {
+            const books = booksOf(character);
+            const entryCount = books.reduce((n, b) => n + b.entries.length, 0);
+            const needsWorld = character.worldName && books.length === 0;
+            return (
+              <div
+                key={character.id}
+                className={`character-card ${character.id === activeCharacterId ? 'active' : ''}`}
+                onClick={() => onOpenCharacter(character.id)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && onOpenCharacter(character.id)}
+              >
+                <Avatar src={character.avatar} name={character.name} size={52} />
+                <div className="card-main">
+                  <div className="card-name">{character.name}</div>
+                  <div className="card-desc">
+                    {character.notes
+                      ? truncate(character.notes.replace(/\s+/g, ' '), 64)
+                      : character.description
+                        ? truncate(
+                            character.description
+                              .replace(/\{\{char\}\}/gi, character.name)
+                              .replace(/\{\{user\}\}/gi, '你')
+                              .replace(/\s+/g, ' '),
+                            64,
+                          )
+                        : character.personality
+                          ? truncate(character.personality.replace(/\s+/g, ' '), 64)
+                          : '没有填写角色描述'}
                   </div>
-                  <button
-                    className="icon-btn card-menu-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openMenu(e, character.id);
-                    }}
-                    aria-label="角色卡菜单"
-                    aria-haspopup="menu"
-                    aria-expanded={menu?.id === character.id}
-                  >
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
-                      <circle cx="5" cy="12" r="1.4" />
-                      <circle cx="12" cy="12" r="1.4" />
-                      <circle cx="19" cy="12" r="1.4" />
-                    </svg>
-                  </button>
+                  <div className="card-tags">
+                    {entryCount > 0 ? (
+                      <span className="tag tag-book">
+                        <IconBook width={11} height={11} /> 世界书 {entryCount}
+                      </span>
+                    ) : needsWorld ? (
+                      <span className="tag tag-warn">缺少世界书</span>
+                    ) : (
+                      <span className="tag tag-ghost">无世界书</span>
+                    )}
+                    {character.tags.slice(0, 2).map((tag) => (
+                      <span className="tag tag-ghost" key={tag}>
+                        {tag}
+                      </span>
+                    ))}
+                    {character.code?.scripts?.some((s) => s.enabled) && (
+                      <span className="card-script-tag">含脚本</span>
+                    )}
+                  </div>
                 </div>
-              );
-            })
+                <button
+                  className="icon-btn card-menu-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openMenu(e, character.id);
+                  }}
+                  aria-label="角色卡菜单"
+                  aria-haspopup="menu"
+                  aria-expanded={menu?.id === character.id}
+                >
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx="5" cy="12" r="1.4" />
+                    <circle cx="12" cy="12" r="1.4" />
+                    <circle cx="19" cy="12" r="1.4" />
+                  </svg>
+                </button>
+              </div>
+            );
+          })
         )}
       </div>
+
+      <Pager
+        page={safePage}
+        pageCount={pageCount}
+        onChange={setPage}
+        className="rail-pager"
+        label="角色卡分页"
+      />
 
       <div className="panel-foot">
         <span>自动挂载内嵌世界书</span>

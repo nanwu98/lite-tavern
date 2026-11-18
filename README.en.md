@@ -82,6 +82,15 @@ group chat, no plugin store, no cloud sync — just the story.
 - **Your own avatar (1.6.8+)**: Settings → Roleplay → under your name you can upload,
   replace or remove an avatar. Once set, your messages show it next to the bubble; with
   no avatar the layout stays exactly as before.
+- **Pagination and paired entry points (1.6.9+)**: the start screen and the card rail are
+  paginated (9 cards per page on desktop, 6 on phones; the rail shows 8), with themed
+  prev/next controls. The start screen always keeps **Import** and **New** side by side at
+  the same size, and opening the rail from a chat jumps to the page holding that card.
+- **Swipe drawers on phones (1.6.9+)**: swipe left on the chat to open the card rail,
+  right to open the chat list, and swipe the opposite way inside a drawer to close it.
+  Vertical scrolling and horizontal code-block scrolling are unaffected.
+- **Android power (1.6.9+)**: the full-screen aurora and other decorative loops are frozen
+  on phones (same look). Idle CPU measured on a real device dropped from ~110% to 0–3%.
 - **In-app updates (1.5.0+, silent check on launch since 1.6.4)**: the app checks
   for a release in the background at startup and lights a small red dot on the
   settings button when one exists; Settings → About & updates shows the version,

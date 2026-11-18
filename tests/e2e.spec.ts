@@ -86,6 +86,16 @@ async function sendLongTurn(page: Page, label: string) {
   await expect(page.getByLabel('发送')).toBeVisible({ timeout: 40_000 });
 }
 
+/** Real touch drag through CDP, so React's touch handlers run in the browser. */
+async function swipe(page: Page, from: [number, number], to: [number, number]) {
+  const cdp = await page.context().newCDPSession(page);
+  const point = ([x, y]: [number, number]) => [{ x, y, radiusX: 2, radiusY: 2, force: 1 }];
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: point(from) });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: point(to) });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await cdp.detach();
+}
+
 test.describe('desktop', () => {
   test('keeps the API key while testing the connection and after saving', async ({ page }) => {
     await page.goto('/');
@@ -613,6 +623,77 @@ test.describe('desktop', () => {
     await expect(page.locator('.welcome-card-name')).toHaveText(['测试角色·阿绫']);
   });
 
+  test('paginates the start screen and card rail, with import/create as peers', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    await expect(page.locator('.brand-title')).toBeVisible();
+
+    // Empty start screen: both entry points are real, equal-sized buttons.
+    const peers = page.locator('.welcome-actions .btn');
+    await expect(peers).toHaveCount(2);
+    const sizes = await peers.evaluateAll((elements) =>
+      elements.map((element) => {
+        const rect = element.getBoundingClientRect();
+        return { width: rect.width, height: rect.height };
+      }),
+    );
+    expect(sizes[0].height).toBe(sizes[1].height);
+    expect(Math.abs(sizes[0].width - sizes[1].width)).toBeLessThanOrEqual(1);
+
+    // Seed ten cards without chats, so the start screen stays visible.
+    await page.locator('.brand .icon-btn[aria-label="设置"]').click();
+    const backup = {
+      format: 'lite-tavern-backup',
+      version: 1,
+      exportedAt: Date.now(),
+      characters: Array.from({ length: 10 }, (_, i) => ({
+        id: `pager-card-${i}`,
+        name: `分页卡 ${i + 1}`,
+        createdAt: 1_700_000_000_000 + i,
+        updatedAt: 1_700_000_000_000 + i,
+      })),
+      worldBooks: [],
+      chats: [],
+    };
+    await page
+      .locator('.settings-modal input[type="file"][accept=".json,application/json"]')
+      .setInputFiles({
+        name: 'pager-backup.json',
+        mimeType: 'application/json',
+        buffer: Buffer.from(JSON.stringify(backup)),
+      });
+    await page.getByRole('button', { name: '导入', exact: true }).click();
+    await expect(page.locator('.toast').last()).toContainText('已导入 10 张角色卡');
+    await page.keyboard.press('Escape');
+
+    // Start screen: 9 cards per page.
+    await expect(page.locator('.welcome-card')).toHaveCount(9);
+    await expect(page.locator('.welcome-pager .pager-info')).toHaveText('1 / 2');
+    await page.locator('.welcome-pager').getByRole('button', { name: '下一页' }).click();
+    await expect(page.locator('.welcome-card')).toHaveCount(1);
+    await expect(page.locator('.welcome-pager .pager-info')).toHaveText('2 / 2');
+    await expect(
+      page.locator('.welcome-pager').getByRole('button', { name: '下一页' }),
+    ).toBeDisabled();
+
+    // Card rail: 8 cards per page, independent from the start-screen page.
+    await expect(page.locator('.character-panel .character-card')).toHaveCount(8);
+    await expect(page.locator('.rail-pager .pager-info')).toHaveText('1 / 2');
+    await page.locator('.rail-pager').getByRole('button', { name: '下一页' }).click();
+    await expect(page.locator('.character-panel .character-card')).toHaveCount(2);
+    await expect(page.locator('.rail-pager .pager-info')).toHaveText('2 / 2');
+
+    // Import and manual create stay paired on the populated start screen.
+    await expect(
+      page.locator('.welcome-actions-row').getByRole('button', { name: '再导入一张' }),
+    ).toBeVisible();
+    await expect(
+      page.locator('.welcome-actions-row').getByRole('button', { name: '新建一张' }),
+    ).toBeVisible();
+    await page.screenshot({ path: path.join(SHOTS, 'desktop-pagination.png') });
+  });
+
   test('exports a timestamped backup and restores cards and chats after they are deleted', async ({
     page,
   }) => {
@@ -847,7 +928,7 @@ test.describe('mobile', () => {
     await page.goto('/');
     await expect(page.locator('.brand-title')).toBeVisible();
     const chooserPromise = page.waitForEvent('filechooser');
-    await page.getByRole('button', { name: '导入第一张角色卡' }).click();
+    await page.getByRole('button', { name: '导入角色卡' }).click();
     const chooser = await chooserPromise;
     await chooser.setFiles(CARD);
     await expect(page.locator('.chat-name-row h2')).toHaveText('测试角色·阿绫', {
@@ -899,5 +980,28 @@ test.describe('mobile', () => {
     await assistantRow.getByRole('button', { name: '取消' }).click();
     await expect(page.locator('.composer-wrap')).toBeVisible();
     await expect(page.locator('.chat-view')).not.toHaveClass(/is-editing-message/);
+  });
+
+  test('opens and closes both drawers with horizontal swipes', async ({ page }) => {
+    await importCard(page);
+    await dismissToasts(page);
+    const app = page.locator('.app');
+
+    // Chat: swipe right-to-left opens the card rail.
+    await swipe(page, [340, 600], [60, 600]);
+    await expect(app).toHaveClass(/show-right/);
+    await page.waitForTimeout(350);
+    // Card rail: swipe left-to-right closes it.
+    await swipe(page, [80, 120], [340, 120]);
+    await expect(app).not.toHaveClass(/show-right/);
+    await page.waitForTimeout(350);
+
+    // Chat: swipe left-to-right opens the chat list.
+    await swipe(page, [60, 600], [340, 600]);
+    await expect(app).toHaveClass(/show-left/);
+    await page.waitForTimeout(350);
+    // Chat list: swipe right-to-left closes it.
+    await swipe(page, [340, 400], [100, 400]);
+    await expect(app).not.toHaveClass(/show-left/);
   });
 });

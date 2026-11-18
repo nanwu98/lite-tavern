@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStore, activeChat as selectActiveChat, booksForCharacter } from './store';
 import { importFile, type ImportResult } from './lib/card';
 import { looksLikeWorldBook, parseWorldBook } from './lib/worldbook';
@@ -23,6 +23,8 @@ import {
   IconSparkles,
   IconX,
 } from './components/Icons';
+import { Pager } from './components/Pager';
+import { paginate } from './lib/pagination';
 import type { Character, Chat, WorldBook } from './types';
 import { flushPersist, snapshotNow } from './store';
 import { applyTheme, onSystemThemeChange } from './lib/theme';
@@ -31,6 +33,9 @@ import { checkForUpdates, isAndroidApp } from './lib/update';
 
 type ConfirmState =
   { kind: 'chat'; chat: Chat } | { kind: 'character'; character: Character } | null;
+
+/** Cards shown on one start-screen page (3 columns × 3 rows). */
+const WELCOME_PAGE_SIZE = 9;
 
 /** Desktop side-panel collapse state survives reloads; mobile uses drawers. */
 const LEFT_COLLAPSE_KEY = 'lite-tavern-left-collapsed';
@@ -85,6 +90,30 @@ function Welcome({
   onDelete: (character: Character) => void;
   updateReady?: boolean;
 }) {
+  const [page, setPage] = useState(0);
+  const [compact, setCompact] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches,
+  );
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 640px)');
+    const sync = () => setCompact(query.matches);
+    sync();
+    query.addEventListener('change', sync);
+    return () => query.removeEventListener('change', sync);
+  }, []);
+  const sorted = useMemo(
+    () => [...characters].sort((a, b) => b.createdAt - a.createdAt),
+    [characters],
+  );
+  const {
+    page: safePage,
+    pageCount,
+    items: pageCharacters,
+  } = paginate(sorted, page, compact ? 6 : WELCOME_PAGE_SIZE);
+  useEffect(() => {
+    if (page !== safePage) setPage(safePage);
+  }, [page, safePage]);
+
   return (
     <main className="chat-view welcome">
       <div className="mobile-topbar mobile-only">
@@ -117,41 +146,49 @@ function Welcome({
         {characters.length === 0 ? (
           <div className="welcome-actions">
             <button className="btn btn-accent btn-large" onClick={onImport}>
-              <IconPlus width={18} height={18} /> 导入第一张角色卡
+              <IconPlus width={18} height={18} /> 导入角色卡
             </button>
-            <button className="btn btn-ghost" onClick={onCreate}>
-              <IconEdit width={16} height={16} /> 或者手写一张
+            <button className="btn btn-ghost btn-large" onClick={onCreate}>
+              <IconEdit width={18} height={18} /> 手动新建
             </button>
           </div>
         ) : (
           <>
             <div className="welcome-cards">
-              {[...characters]
-                .sort((a, b) => b.createdAt - a.createdAt)
-                .map((character) => (
-                  <div className="welcome-card" key={character.id}>
-                    <button className="welcome-card-main" onClick={() => onPick(character.id)}>
-                      <Avatar src={character.avatar} name={character.name} size={56} />
-                      <span className="welcome-card-name">{character.name}</span>
-                      <span className="welcome-card-hint">开始聊天</span>
-                    </button>
-                    <button
-                      className="welcome-card-del"
-                      title={`删除「${character.name}」`}
-                      aria-label={`删除角色卡 ${character.name}`}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onDelete(character);
-                      }}
-                    >
-                      <IconX width={11} height={11} />
-                    </button>
-                  </div>
-                ))}
+              {pageCharacters.map((character) => (
+                <div className="welcome-card" key={character.id}>
+                  <button className="welcome-card-main" onClick={() => onPick(character.id)}>
+                    <Avatar src={character.avatar} name={character.name} size={56} />
+                    <span className="welcome-card-name">{character.name}</span>
+                    <span className="welcome-card-hint">开始聊天</span>
+                  </button>
+                  <button
+                    className="welcome-card-del"
+                    title={`删除「${character.name}」`}
+                    aria-label={`删除角色卡 ${character.name}`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onDelete(character);
+                    }}
+                  >
+                    <IconX width={11} height={11} />
+                  </button>
+                </div>
+              ))}
             </div>
+            <Pager
+              page={safePage}
+              pageCount={pageCount}
+              onChange={setPage}
+              className="welcome-pager"
+              label="角色卡分页"
+            />
             <div className="welcome-actions-row">
-              <button className="link-btn" onClick={onImport}>
-                <IconPlus width={14} height={14} /> 再导入一张卡
+              <button className="btn btn-small btn-ghost" onClick={onImport}>
+                <IconPlus width={14} height={14} /> 再导入一张
+              </button>
+              <button className="btn btn-small btn-ghost" onClick={onCreate}>
+                <IconEdit width={14} height={14} /> 新建一张
               </button>
               <span className="welcome-tip">共 {characters.length} 张 · 点卡片右上角 ✕ 可删除</span>
             </div>
@@ -202,6 +239,7 @@ export default function App() {
   const [confirm, setConfirm] = useState<ConfirmState>(null);
   const [leftOpen, setLeftOpen] = useState(false);
   const [rightOpen, setRightOpen] = useState(false);
+  const [appInactive, setAppInactive] = useState(false);
   const [importing, setImporting] = useState(false);
   const [leftCollapsed, setLeftCollapsed] = useState(() => readCollapsed(LEFT_COLLAPSE_KEY));
   const [rightCollapsed, setRightCollapsed] = useState(() => readCollapsed(RIGHT_COLLAPSE_KEY));
@@ -266,6 +304,13 @@ export default function App() {
     clearRestoredFlag();
     toast('检测到本地存储异常，已从自动快照恢复上次的角色卡与对话', 'success');
   }, [hydrated, toast]);
+
+  useEffect(() => {
+    const sync = () => setAppInactive(document.visibilityState === 'hidden');
+    sync();
+    document.addEventListener('visibilitychange', sync);
+    return () => document.removeEventListener('visibilitychange', sync);
+  }, []);
 
   useEffect(() => {
     setLeftOpen(false);
@@ -595,13 +640,112 @@ export default function App() {
     setConfirm(null);
   }, [confirm, deleteChat, deleteCharacter, toast]);
 
+  /**
+   * Phone drawer gestures:
+   * - chat page: swipe left opens the card rail, swipe right opens the chat list;
+   * - left drawer: swipe left closes it;
+   * - right drawer: swipe right closes it.
+   * A swipe only counts when it is clearly horizontal, otherwise the message
+   * list keeps its normal vertical scrolling.
+   */
+  const swipeRef = useRef<{
+    x: number;
+    y: number;
+    at: number;
+    area: 'chat' | 'left' | 'right';
+  } | null>(null);
+  const appRef = useRef<HTMLDivElement | null>(null);
+
+  // Once a drawer gesture starts, swallow clearly horizontal pans so the
+  // gesture wins instead of turning into a horizontal scroll. Vertical pans and
+  // code blocks (excluded in onTouchStart) keep their native scrolling.
+  useEffect(() => {
+    const element = appRef.current;
+    if (!element) return;
+    const onMove = (event: TouchEvent) => {
+      const start = swipeRef.current;
+      const touch = event.touches[0];
+      if (!start || !touch) return;
+      const dx = touch.clientX - start.x;
+      const dy = touch.clientY - start.y;
+      if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy)) event.preventDefault();
+    };
+    element.addEventListener('touchmove', onMove, { passive: false });
+    return () => element.removeEventListener('touchmove', onMove);
+  }, []);
+
+  const onTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    if (event.touches.length !== 1) {
+      swipeRef.current = null;
+      return;
+    }
+    const target = event.target as HTMLElement;
+    if (
+      target.closest(
+        'input, textarea, select, button, label, a, pre, code, [contenteditable="true"], .modal-backdrop',
+      )
+    ) {
+      swipeRef.current = null;
+      return;
+    }
+    const area: 'chat' | 'left' | 'right' | null = target.closest('.chat-list-panel')
+      ? 'left'
+      : target.closest('.character-panel')
+        ? 'right'
+        : target.closest('.chat-view')
+          ? 'chat'
+          : null;
+    if (!area) {
+      swipeRef.current = null;
+      return;
+    }
+    const touch = event.touches[0];
+    // Leave edge swipes to Android's own back gesture.
+    if (touch.clientX < 24 || touch.clientX > window.innerWidth - 24) {
+      swipeRef.current = null;
+      return;
+    }
+    swipeRef.current = { x: touch.clientX, y: touch.clientY, at: Date.now(), area };
+  };
+
+  const onTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
+    const start = swipeRef.current;
+    swipeRef.current = null;
+    if (!start || event.changedTouches.length !== 1) return;
+    if (Date.now() - start.at > 700) return;
+    const touch = event.changedTouches[0];
+    const dx = touch.clientX - start.x;
+    const dy = touch.clientY - start.y;
+    if (Math.abs(dx) < 56 || Math.abs(dx) < Math.abs(dy) * 1.4) return;
+
+    if (start.area === 'chat') {
+      if (dx < 0) {
+        setLeftOpen(false);
+        setRightOpen(true);
+      } else {
+        setRightOpen(false);
+        setLeftOpen(true);
+      }
+    } else if (start.area === 'left') {
+      if (dx < 0) setLeftOpen(false);
+    } else if (dx > 0) {
+      setRightOpen(false);
+    }
+  };
+
   if (!hydrated) return <LoadingScreen />;
 
   return (
     <div
+      ref={appRef}
       className={`app ${leftOpen ? 'show-left' : ''} ${rightOpen ? 'show-right' : ''} ${
         leftCollapsed ? 'collapse-left' : ''
-      } ${rightCollapsed ? 'collapse-right' : ''}`}
+      } ${rightCollapsed ? 'collapse-right' : ''} ${appInactive ? 'app-inactive' : ''}`}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+      onTouchCancel={() => {
+        swipeRef.current = null;
+      }}
     >
       {(leftOpen || rightOpen) && (
         <div
@@ -706,6 +850,7 @@ export default function App() {
         onViewWorldBooks={(target) => setWbCharacterId(target.id)}
         onDeleteCharacter={requestDeleteCharacter}
         onCollapse={() => setRightCollapsed(true)}
+        opened={rightOpen}
       />
 
       {importing && (
