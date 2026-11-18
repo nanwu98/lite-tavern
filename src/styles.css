@@ -246,20 +246,23 @@ a:hover {
 
 .search-icon {
   position: absolute;
-  left: 23px;
-  top: 8px;
+  left: 25px;
+  top: 9px;
   color: var(--muted-2);
   display: flex;
   pointer-events: none;
 }
 
+/* The padding is what keeps the placeholder clear of the magnifier. Do not add
+   this input to the generic field group below: its later rule resets the
+   left padding and makes the icon sit on top of the placeholder. */
 .list-search input {
   width: 100%;
   height: 32px;
   border-radius: 9px;
   border: 1px solid var(--line-soft);
   background: var(--tint-weak);
-  padding: 0 11px 0 30px;
+  padding: 0 11px 0 36px;
   outline: none;
   font-size: 12px;
   color: var(--text-soft);
@@ -310,8 +313,21 @@ a:hover {
 
 .chat-item-top {
   display: flex;
-  align-items: baseline;
-  gap: 6px;
+  align-items: center;
+  gap: 5px;
+}
+
+.chat-item-pin {
+  flex: 0 0 auto;
+  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+  top: -1px;
+}
+
+.chat-item.is-pinned {
+  background: linear-gradient(100deg, rgba(231, 181, 120, 0.08), rgba(231, 181, 120, 0.015));
 }
 
 .chat-item-name {
@@ -346,25 +362,174 @@ a:hover {
   text-overflow: ellipsis;
 }
 
-.item-delete {
+/* Three-dot menu replaces the old one-click delete, so accidental taps can no
+   longer destroy a conversation from the list. */
+.item-more {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
   opacity: 0;
   border: 0;
   background: none;
   color: var(--muted-2);
-  padding: 3px;
-  border-radius: 6px;
+  padding: 0;
+  border-radius: 7px;
   display: grid;
   place-items: center;
   transition: 0.15s;
 }
 
-.chat-item:hover .item-delete {
+.chat-item:hover .item-more,
+.chat-item.menu-open .item-more {
   opacity: 1;
 }
 
-.item-delete:hover {
+.item-more:hover {
+  color: var(--text);
+  background: var(--tint-strong);
+}
+
+/* ---------- archived conversations ---------- */
+.archive-block {
+  margin: 14px 0 4px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+}
+
+.archive-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 4px 8px;
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.03em;
+}
+
+.archive-count {
+  margin-left: auto;
+  min-width: 18px;
+  height: 17px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--tint-strong);
+  color: var(--muted);
+  font-size: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.archive-empty {
+  margin: 0;
+  padding: 6px 6px 10px;
+  color: var(--muted-2);
+  font-size: 11.5px;
+}
+
+.archive-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 6px;
+  border-radius: 10px;
+}
+
+.archive-item:hover {
+  background: var(--tint-weak);
+}
+
+.archive-item-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.archive-item-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.archive-item-meta {
+  margin-top: 2px;
+  color: var(--muted-2);
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.archive-item-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.archive-action {
+  height: 26px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-soft);
+  font-size: 10.5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transition: 0.15s;
+}
+
+.archive-action:hover {
+  border-color: rgba(242, 198, 143, 0.38);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.archive-action.danger {
+  padding: 0 7px;
+  color: var(--muted-2);
+}
+
+.archive-action.danger:hover {
+  border-color: rgba(224, 122, 117, 0.4);
   color: var(--danger);
   background: var(--danger-soft);
+}
+
+.archive-toggle {
+  flex: 0 0 auto;
+  height: 38px;
+  margin: 0 10px 8px;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  background: var(--tint-weak);
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 11.5px;
+  transition: 0.15s;
+}
+
+.archive-toggle:hover {
+  border-color: rgba(242, 198, 143, 0.3);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.archive-chevron {
+  transition: transform 0.16s ease;
+}
+
+.archive-toggle.open .archive-chevron {
+  transform: rotate(-90deg);
 }
 
 .panel-empty {
@@ -1173,47 +1338,56 @@ a:hover {
 }
 
 /* ---------- welcome ---------- */
+/*
+ * The phone top bar used to be `position: absolute` inside the scrolling
+ * welcome page. That let the page content overlap it and, when the page was
+ * scrolled, put the icons under the content/status area, which is why the
+ * three buttons felt dead. The bar is now a normal flex row and only the
+ * content below it scrolls, so it can never be covered.
+ */
 .welcome {
-  justify-content: center;
-  align-items: center;
+  justify-content: flex-start;
+  align-items: stretch;
+  overflow: hidden;
+}
+
+.welcome-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
 }
 
 .welcome-inner {
+  width: 100%;
   max-width: 680px;
   text-align: center;
-  padding: 30px 26px;
+  padding: 26px 26px 30px;
   margin: auto;
 }
 
 .welcome-mark {
   display: flex;
   justify-content: center;
-  margin-bottom: 18px;
+  margin-bottom: 12px;
   filter: drop-shadow(0 16px 30px rgba(231, 181, 120, 0.12));
 }
 
 .welcome h1 {
-  margin: 0;
-  font-size: 30px;
+  margin: 0 0 18px;
+  font-size: 28px;
   letter-spacing: 0.08em;
   font-weight: 620;
-}
-
-.welcome-lead {
-  color: var(--muted);
-  line-height: 1.9;
-  font-size: 13px;
-  margin: 12px 0 26px;
 }
 
 .welcome-cards {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 14px;
-  padding: 6px;
-  max-height: min(46vh, 460px);
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 4px;
+  max-height: min(46vh, 420px);
   overflow-y: auto;
   overscroll-behavior: contain;
   align-content: start;
@@ -1239,16 +1413,16 @@ a:hover {
   background: none;
   color: inherit;
   border-radius: 14px;
-  padding: 16px 10px 12px;
+  padding: 10px 8px 9px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
   cursor: pointer;
 }
 
 .welcome-card .avatar {
-  border-radius: 15px;
+  border-radius: 12px;
 }
 
 /* Delete affordance in the top-right corner of every card. */
@@ -1293,21 +1467,40 @@ a:hover {
   }
 }
 
-.welcome-actions-row {
+.welcome-pager-row {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 14px;
   flex-wrap: wrap;
+  margin: 2px 0 14px;
 }
 
-.welcome-tip {
+.welcome-pager-row .welcome-pager {
+  margin: 0;
+}
+
+.welcome-count {
   color: var(--muted-2);
-  font-size: 10.5px;
+  font-size: 11px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.welcome-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.welcome-actions-row .btn {
+  min-width: 118px;
 }
 
 .welcome-card-name {
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
   width: 100%;
   white-space: nowrap;
@@ -1315,33 +1508,19 @@ a:hover {
   text-overflow: ellipsis;
 }
 
-.welcome-card-hint {
-  color: var(--muted-2);
-  font-size: 9.5px;
-  letter-spacing: 0.04em;
-}
-
-.welcome-foot {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 9px;
-  color: var(--muted-2);
-  font-size: 10px;
-  margin-top: 30px;
-}
-
 .mobile-topbar {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
+  position: relative;
+  z-index: 20;
+  flex: 0 0 auto;
   height: 54px;
   padding: 0 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--line-soft);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.008));
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(14px) saturate(140%);
 }
 
 .mobile-brand {
@@ -1355,6 +1534,7 @@ a:hover {
 
 .mobile-top-actions {
   display: flex;
+  gap: 2px;
 }
 
 /* ---------- buttons ---------- */
@@ -1576,8 +1756,7 @@ a:hover {
 .field input,
 .field textarea,
 .field select,
-.wb-search input,
-.list-search input {
+.wb-search input {
   border: 1px solid var(--line);
   background: var(--bg-soft);
   border-radius: 8px;
@@ -2174,24 +2353,48 @@ a:hover {
   }
 
   .welcome-inner {
-    padding: 72px 22px 30px;
+    padding: 14px 16px 26px;
   }
 
   .welcome h1 {
-    font-size: 26px;
+    font-size: 24px;
+    margin-bottom: 14px;
+  }
+
+  .welcome-mark {
+    margin-bottom: 8px;
+  }
+
+  .welcome-mark svg {
+    width: 46px;
+    height: 46px;
   }
 
   .welcome-cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
   }
 
-  .welcome-lead {
-    font-size: 12.5px;
+  .welcome-card-main {
+    padding: 9px 7px 8px;
   }
 
-  .welcome-foot {
-    flex-wrap: wrap;
-    gap: 6px;
+  .welcome-pager-row {
+    gap: 10px;
+  }
+
+  .welcome-count {
+    font-size: 10.5px;
+  }
+
+  .welcome-actions-row {
+    gap: 8px;
+  }
+
+  .welcome-actions-row .btn {
+    min-width: 0;
+    flex: 1 1 0;
+    max-width: 160px;
   }
 
   .modal-backdrop {
@@ -2241,7 +2444,7 @@ a:hover {
   }
 
   .card-menu-btn,
-  .item-delete {
+  .item-more {
     opacity: 1;
   }
 }
@@ -3503,7 +3706,7 @@ body {
 }
 
 .welcome h1 {
-  font-size: 34px;
+  font-size: 28px;
   letter-spacing: 0.14em;
   font-weight: 560;
   background: linear-gradient(180deg, #fff8ec 10%, #edc69a 62%, #cf9563);
@@ -3517,10 +3720,6 @@ body {
   background: linear-gradient(180deg, #43301f 10%, #7d5128 70%, #9c6b3d);
   -webkit-background-clip: text;
   background-clip: text;
-}
-
-.welcome-lead {
-  color: var(--muted);
 }
 
 .welcome-card {
@@ -4731,6 +4930,24 @@ button:focus-visible {
     min-width: 0;
     max-width: none;
     flex: 1 1 0;
+  }
+}
+
+@media (max-width: 980px) {
+  .welcome h1 {
+    font-size: 24px;
+  }
+
+  .welcome-card {
+    border-radius: 14px;
+  }
+
+  .mobile-topbar {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.012));
+  }
+
+  [data-theme='light'] .mobile-topbar {
+    background: linear-gradient(180deg, rgba(255, 252, 247, 0.82), rgba(255, 252, 247, 0.5));
   }
 }
 

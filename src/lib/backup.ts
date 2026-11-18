@@ -257,6 +257,8 @@ function normalizeChat(raw: unknown): Chat | null {
     // another device (and is a privacy leak), so it is dropped on import.
     background: background.startsWith('data:image/') ? background : undefined,
     backgroundCard: chat.backgroundCard === true ? true : undefined,
+    pinnedAt: Number(chat.pinnedAt) || undefined,
+    archivedAt: Number(chat.archivedAt) || undefined,
     compaction:
       compaction && typeof compaction === 'object' && asString(compaction.summary).trim()
         ? {

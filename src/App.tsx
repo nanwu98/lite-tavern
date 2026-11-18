@@ -25,6 +25,7 @@ import {
 } from './components/Icons';
 import { Pager } from './components/Pager';
 import { paginate } from './lib/pagination';
+import { latestVisibleChat } from './lib/chatOrder';
 import type { Character, Chat, WorldBook } from './types';
 import { flushPersist, snapshotNow } from './store';
 import { applyTheme, onSystemThemeChange } from './lib/theme';
@@ -133,73 +134,64 @@ function Welcome({
           </button>
         </div>
       </div>
-      <div className="welcome-inner">
-        <div className="welcome-mark">
-          <IconLogo width={64} height={64} />
-        </div>
-        <h1>轻语酒馆</h1>
-        <p className="welcome-lead">
-          一张角色卡，一本世界书，一段只属于你的对话。
-          <br />
-          不做卡片编辑，不做群聊，只把故事讲好。
-        </p>
-        {characters.length === 0 ? (
-          <div className="welcome-actions">
-            <button className="btn btn-accent btn-large" onClick={onImport}>
-              <IconPlus width={18} height={18} /> 导入角色卡
-            </button>
-            <button className="btn btn-ghost btn-large" onClick={onCreate}>
-              <IconEdit width={18} height={18} /> 手动新建
-            </button>
+      <div className="welcome-scroll">
+        <div className="welcome-inner">
+          <div className="welcome-mark">
+            <IconLogo width={54} height={54} />
           </div>
-        ) : (
-          <>
-            <div className="welcome-cards">
-              {pageCharacters.map((character) => (
-                <div className="welcome-card" key={character.id}>
-                  <button className="welcome-card-main" onClick={() => onPick(character.id)}>
-                    <Avatar src={character.avatar} name={character.name} size={56} />
-                    <span className="welcome-card-name">{character.name}</span>
-                    <span className="welcome-card-hint">开始聊天</span>
-                  </button>
-                  <button
-                    className="welcome-card-del"
-                    title={`删除「${character.name}」`}
-                    aria-label={`删除角色卡 ${character.name}`}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onDelete(character);
-                    }}
-                  >
-                    <IconX width={11} height={11} />
-                  </button>
-                </div>
-              ))}
-            </div>
-            <Pager
-              page={safePage}
-              pageCount={pageCount}
-              onChange={setPage}
-              className="welcome-pager"
-              label="角色卡分页"
-            />
-            <div className="welcome-actions-row">
-              <button className="btn btn-small btn-ghost" onClick={onImport}>
-                <IconPlus width={14} height={14} /> 再导入一张
+          <h1>轻语酒馆</h1>
+          {characters.length === 0 ? (
+            <div className="welcome-actions">
+              <button className="btn btn-accent btn-large" onClick={onImport}>
+                <IconPlus width={18} height={18} /> 导入角色卡
               </button>
-              <button className="btn btn-small btn-ghost" onClick={onCreate}>
-                <IconEdit width={14} height={14} /> 新建一张
+              <button className="btn btn-ghost btn-large" onClick={onCreate}>
+                <IconEdit width={18} height={18} /> 手动新建
               </button>
-              <span className="welcome-tip">共 {characters.length} 张 · 点卡片右上角 ✕ 可删除</span>
             </div>
-          </>
-        )}
-        <div className="welcome-foot">
-          <span>PNG / JSON 角色卡</span>
-          <span className="dot" />
-          <span>自动读取世界书</span>
-          <span className="dot" />
-          <span>多模型可选</span>
+          ) : (
+            <>
+              <div className="welcome-cards">
+                {pageCharacters.map((character) => (
+                  <div className="welcome-card" key={character.id}>
+                    <button className="welcome-card-main" onClick={() => onPick(character.id)}>
+                      <Avatar src={character.avatar} name={character.name} size={44} />
+                      <span className="welcome-card-name">{character.name}</span>
+                    </button>
+                    <button
+                      className="welcome-card-del"
+                      title={`删除「${character.name}」`}
+                      aria-label={`删除角色卡 ${character.name}`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onDelete(character);
+                      }}
+                    >
+                      <IconX width={11} height={11} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="welcome-pager-row">
+                <Pager
+                  page={safePage}
+                  pageCount={pageCount}
+                  onChange={setPage}
+                  className="welcome-pager"
+                  label="角色卡分页"
+                />
+                <span className="welcome-count">共 {characters.length} 张</span>
+              </div>
+              <div className="welcome-actions-row">
+                <button className="btn btn-small btn-ghost" onClick={onImport}>
+                  <IconPlus width={14} height={14} /> 再导入一张
+                </button>
+                <button className="btn btn-small btn-ghost" onClick={onCreate}>
+                  <IconEdit width={14} height={14} /> 新建一张
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </main>
@@ -218,6 +210,8 @@ export default function App() {
   const openCharacter = useStore((s) => s.openCharacter);
   const createChat = useStore((s) => s.createChat);
   const deleteChat = useStore((s) => s.deleteChat);
+  const pinChat = useStore((s) => s.pinChat);
+  const archiveChat = useStore((s) => s.archiveChat);
   const deleteCharacter = useStore((s) => s.deleteCharacter);
   const importCard = useStore((s) => s.importCard);
   const attachWorldBook = useStore((s) => s.attachWorldBook);
@@ -430,10 +424,9 @@ export default function App() {
 
   const pickWelcomeCard = useCallback(
     (id: string) => {
-      const existing = useStore
-        .getState()
-        .chats.filter((c) => c.characterId === id)
-        .sort((a, b) => b.updatedAt - a.updatedAt)[0];
+      // Archived conversations stay hidden here too: opening a card must not
+      // silently jump into a chat the user put away.
+      const existing = latestVisibleChat(useStore.getState().chats, id);
       if (existing) selectChat(existing.id);
       else createChat(id, 0);
     },
@@ -619,6 +612,31 @@ export default function App() {
     [attachWorldBook, parseWorldBookFile, toast],
   );
 
+  const handlePinChat = useCallback(
+    (target: Chat) => {
+      const next = !target.pinnedAt;
+      pinChat(target.id, next);
+      toast(next ? `已置顶「${target.title}」` : `已取消置顶「${target.title}」`, 'success');
+    },
+    [pinChat, toast],
+  );
+
+  const handleArchiveChat = useCallback(
+    (target: Chat) => {
+      archiveChat(target.id, true);
+      toast('已归档，可在对话列表底部的「查看归档」找回', 'success');
+    },
+    [archiveChat, toast],
+  );
+
+  const handleRestoreChat = useCallback(
+    (target: Chat) => {
+      archiveChat(target.id, false);
+      toast(`已恢复「${target.title}」`, 'success');
+    },
+    [archiveChat, toast],
+  );
+
   const requestDeleteChat = useCallback(
     (target: Chat) => setConfirm({ kind: 'chat', chat: target }),
     [],
@@ -784,6 +802,9 @@ export default function App() {
         activeChatId={activeChatId}
         onSelect={selectChat}
         onNew={startNewChat}
+        onPin={handlePinChat}
+        onArchive={handleArchiveChat}
+        onRestore={handleRestoreChat}
         onRequestDelete={requestDeleteChat}
         onOpenSettings={openSettings}
         onOpenCards={() => {
@@ -914,7 +935,7 @@ export default function App() {
           </p>
         ) : (
           <p className="modal-text">
-            「{confirm?.chat.title}」的所有消息会从本机删除，角色卡保留。
+            「{confirm?.chat.title}」及其所有消息会从本机彻底删除，无法恢复；角色卡保留。
           </p>
         )}
       </Modal>

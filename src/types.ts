@@ -143,6 +143,10 @@ export interface Chat {
   background?: string;
   /** Use the character's own avatar as the background (JSON cards have none). */
   backgroundCard?: boolean;
+  /** When the chat was pinned; pinned chats sort before the rest. */
+  pinnedAt?: number;
+  /** When the chat was archived; archived chats are hidden from the main list. */
+  archivedAt?: number;
 }
 
 export type ThemeMode = 'system' | 'dark' | 'light';

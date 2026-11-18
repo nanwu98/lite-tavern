@@ -40,6 +40,14 @@ export const IconTrash = (p: P) => (
   </svg>
 );
 
+/** Pushpin used for pinned conversations. */
+export const IconPin = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M9.2 4h5.6l-.9 4.6 2.8 2.8v1.8H7.3v-1.8l2.8-2.8L9.2 4Z" />
+    <path d="M12 13.2V20" />
+  </svg>
+);
+
 export const IconMore = (p: P) => (
   <svg {...base} {...p}>
     <circle cx="5" cy="12" r="1" fill="currentColor" />

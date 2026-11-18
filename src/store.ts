@@ -21,6 +21,7 @@ import {
 } from './lib/backup';
 import { DEFAULT_SETTINGS } from './defaults';
 import { normalizeSettings } from './lib/providers';
+import { latestVisibleChat, sortVisibleChats } from './lib/chatOrder';
 import { truncate, uid } from './lib/util';
 import { applyMacros } from './lib/prompt';
 import {
@@ -98,8 +99,17 @@ interface AppState {
   /** Renames a chat or changes its per-chat settings / background. */
   updateChat: (
     chatId: string,
-    patch: Partial<Pick<Chat, 'title' | 'overrides' | 'background' | 'backgroundCard'>>,
+    patch: Partial<
+      Pick<
+        Chat,
+        'title' | 'overrides' | 'background' | 'backgroundCard' | 'pinnedAt' | 'archivedAt'
+      >
+    >,
   ) => void;
+  /** Pins a chat to the top of the list (or removes the pin). */
+  pinChat: (chatId: string, pinned: boolean) => void;
+  /** Hides a chat from the list; archived chats can only be deleted or restored. */
+  archiveChat: (chatId: string, archived: boolean) => void;
   deleteChat: (chatId: string) => void;
   beginExchange: (chatId: string, text: string) => { assistantId: string } | null;
   beginAssistant: (chatId: string) => string | null;
@@ -565,9 +575,7 @@ export const useStore = create<AppState>()(
 
       openCharacter: (characterId) => {
         const state = getState();
-        const latest = state.chats
-          .filter((c) => c.characterId === characterId)
-          .sort((a, b) => b.updatedAt - a.updatedAt)[0];
+        const latest = latestVisibleChat(state.chats, characterId);
         if (latest) {
           set({ activeChatId: latest.id });
           return;
@@ -586,6 +594,39 @@ export const useStore = create<AppState>()(
         flushPersist();
       },
 
+      pinChat: (chatId, pinned) => {
+        set((state) => ({
+          chats: state.chats.map((c) =>
+            c.id === chatId ? { ...c, pinnedAt: pinned ? Date.now() : undefined } : c,
+          ),
+        }));
+        flushPersist();
+      },
+
+      archiveChat: (chatId, archived) => {
+        const state = getState();
+        const now = Date.now();
+        const chats = state.chats.map((c) =>
+          c.id === chatId
+            ? {
+                ...c,
+                archivedAt: archived ? (c.archivedAt ?? now) : undefined,
+                // Archiving clears the pin so a hidden chat can never hold the
+                // top of the visible list; restoring starts it unpinned.
+                pinnedAt: archived ? undefined : c.pinnedAt,
+              }
+            : c,
+        );
+        // Archiving the open chat would leave the reader on a hidden
+        // conversation: move to the newest visible one (or the start screen).
+        const fallback =
+          archived && state.activeChatId === chatId
+            ? (sortVisibleChats(chats)[0]?.id ?? null)
+            : state.activeChatId;
+        set({ chats, activeChatId: fallback });
+        flushPersist();
+      },
+
       deleteChat: (chatId) => {
         const state = getState();
         const chats = state.chats.filter((c) => c.id !== chatId);
@@ -593,7 +634,7 @@ export const useStore = create<AppState>()(
           chats,
           activeChatId:
             state.activeChatId === chatId
-              ? (chats.sort((a, b) => b.updatedAt - a.updatedAt)[0]?.id ?? null)
+              ? (sortVisibleChats(chats)[0]?.id ?? null)
               : state.activeChatId,
         });
         flushPersist();

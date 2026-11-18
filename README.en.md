@@ -91,6 +91,14 @@ group chat, no plugin store, no cloud sync — just the story.
   Vertical scrolling and horizontal code-block scrolling are unaffected.
 - **Android power (1.6.9+)**: the full-screen aurora and other decorative loops are frozen
   on phones (same look). Idle CPU measured on a real device dropped from ~110% to 0–3%.
+- **Pinning and archiving (1.7.0+)**: every row in the chat list now opens a three-dot
+  menu with **Pin / Archive / Delete**. Pinned chats stay at the top; archived chats are
+  hidden from the main list without being deleted, and **View archive** at the bottom
+  shows their avatar, title and last-updated date with **Restore** and permanent delete.
+  Deletion still asks once and cannot be undone.
+- **Compact start screen (1.7.0+)**: the tagline under the title is gone, cards are smaller
+  (no "start chatting" line) and the total count sits next to **Next**. On phones the chat
+  list / cards / settings buttons live in a fixed top bar that content can no longer cover.
 - **In-app updates (1.5.0+, silent check on launch since 1.6.4)**: the app checks
   for a release in the background at startup and lights a small red dot on the
   settings button when one exists; Settings → About & updates shows the version,

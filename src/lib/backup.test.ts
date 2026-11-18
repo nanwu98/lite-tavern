@@ -120,6 +120,23 @@ describe('backup parsing', () => {
     expect(parsed.chats[0].characterId).toBe('c1');
   });
 
+  it('keeps pin and archive state when a backup is re-imported', () => {
+    const original = buildBackup(
+      {
+        characters: [character()],
+        chats: [
+          chat('pinned', 'c1', { pinnedAt: 111 }),
+          chat('archived', 'c1', { archivedAt: 222 }),
+        ],
+        worldBooks: [],
+      },
+      { characters: true, chats: true },
+    );
+    const parsed = parseBackup(JSON.stringify(original));
+    expect(parsed.chats.find((item) => item.id === 'pinned')?.pinnedAt).toBe(111);
+    expect(parsed.chats.find((item) => item.id === 'archived')?.archivedAt).toBe(222);
+  });
+
   it('rejects files that are not backups', () => {
     expect(() => parseBackup('not json')).toThrow(/JSON/);
     expect(() => parseBackup(JSON.stringify({ hello: 1 }))).toThrow(/不是轻语酒馆/);

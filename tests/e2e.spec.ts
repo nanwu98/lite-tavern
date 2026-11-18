@@ -71,6 +71,23 @@ async function setContextLimit(page: Page, limit: number) {
   await expect(page.locator('.settings-scroll')).toHaveCount(0);
 }
 
+/** Imports a minimal backup through 设置 → 备份与恢复 and closes the dialog. */
+async function restoreBackup(page: Page, payload: Record<string, unknown>) {
+  await page.goto('/');
+  await expect(page.locator('.brand-title')).toBeVisible();
+  await page.locator('.brand .icon-btn[aria-label="设置"]').click();
+  await page
+    .locator('.settings-modal input[type="file"][accept=".json,application/json"]')
+    .setInputFiles({
+      name: 'test-backup.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(payload)),
+    });
+  await page.getByRole('button', { name: '导入', exact: true }).click();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.settings-scroll')).toHaveCount(0);
+}
+
 async function sendAndWait(page: Page, text: string) {
   const input = page.getByLabel('输入消息');
   await input.fill(text);
@@ -694,6 +711,110 @@ test.describe('desktop', () => {
     await page.screenshot({ path: path.join(SHOTS, 'desktop-pagination.png') });
   });
 
+  test('pins, archives, restores and permanently deletes conversations from the list', async ({
+    page,
+  }) => {
+    const base = Date.now();
+    await restoreBackup(page, {
+      format: 'lite-tavern-backup',
+      version: 1,
+      exportedAt: base,
+      characters: [{ id: 'card-1', name: '测试角色', createdAt: base, updatedAt: base }],
+      worldBooks: [],
+      chats: [
+        {
+          id: 'chat-a',
+          characterId: 'card-1',
+          title: '对话 A',
+          messages: [{ id: 'ma', role: 'assistant', content: 'A 的消息', createdAt: base }],
+          createdAt: base - 3000,
+          updatedAt: base - 1000,
+        },
+        {
+          id: 'chat-b',
+          characterId: 'card-1',
+          title: '对话 B',
+          messages: [{ id: 'mb', role: 'assistant', content: 'B 的消息', createdAt: base }],
+          createdAt: base - 2000,
+          updatedAt: base - 2000,
+        },
+        {
+          id: 'chat-c',
+          characterId: 'card-1',
+          title: '对话 C',
+          messages: [{ id: 'mc', role: 'assistant', content: 'C 的消息', createdAt: base }],
+          createdAt: base - 1000,
+          updatedAt: base - 3000,
+        },
+      ],
+    });
+
+    await expect(page.locator('.chat-item')).toHaveCount(3);
+    await expect(page.locator('.chat-item .chat-item-name')).toHaveText([
+      '对话 A',
+      '对话 B',
+      '对话 C',
+    ]);
+
+    // The old one-click delete is gone; every row now has a three-dot menu.
+    await expect(page.locator('.chat-item .item-delete')).toHaveCount(0);
+    await page.locator('.chat-item', { hasText: '对话 B' }).locator('.item-more').click();
+    await expect(page.locator('.chat-menu')).toBeVisible();
+    await page.locator('.chat-menu button', { hasText: '置顶' }).click();
+    await expect(page.locator('.chat-item .chat-item-name').first()).toHaveText('对话 B');
+    await expect(page.locator('.chat-item').first()).toHaveClass(/is-pinned/);
+    await expect(page.locator('.chat-item').first().locator('.chat-item-pin')).toBeVisible();
+
+    // Archive hides it from the list and moves the open conversation away.
+    await page.locator('.chat-item', { hasText: '对话 B' }).locator('.item-more').click();
+    await page.locator('.chat-menu button', { hasText: '归档' }).click();
+    await expect(page.locator('.chat-item')).toHaveCount(2);
+    await expect(page.locator('.archive-toggle')).toContainText('查看归档（1）');
+    await page.locator('.archive-toggle').click();
+    const archived = page.locator('.archive-item');
+    await expect(archived).toHaveCount(1);
+    await expect(archived).toContainText('对话 B');
+    await expect(archived).toContainText('更新于');
+    await expect(archived.getByRole('button', { name: '恢复', exact: true })).toBeVisible();
+    await expect(archived.getByRole('button', { name: '彻底删除 对话 B' })).toBeVisible();
+
+    // Restore brings it back, unpinned and in activity order.
+    await archived.getByRole('button', { name: '恢复', exact: true }).click();
+    await expect(page.locator('.archive-item')).toHaveCount(0);
+    await expect(page.locator('.archive-toggle')).toHaveCount(0);
+    await expect(page.locator('.chat-item')).toHaveCount(3);
+    await expect(page.locator('.chat-item .chat-item-name')).toHaveText([
+      '对话 A',
+      '对话 B',
+      '对话 C',
+    ]);
+
+    // Delete from the archive is permanent and still asks once.
+    await page.locator('.chat-item', { hasText: '对话 B' }).locator('.item-more').click();
+    await page.locator('.chat-menu button', { hasText: '归档' }).click();
+    await page.locator('.archive-toggle').click();
+    await page.locator('.archive-item').getByRole('button', { name: '彻底删除 对话 B' }).click();
+    await expect(page.getByRole('heading', { name: '删除这个对话？' })).toBeVisible();
+    await expect(page.locator('.modal-text')).toContainText('彻底删除，无法恢复');
+    await page.locator('.modal-foot').getByRole('button', { name: '删除' }).click();
+    await expect(page.locator('.archive-item')).toHaveCount(0);
+    await expect(page.locator('.archive-toggle')).toHaveCount(0);
+    await expect(page.locator('.chat-item')).toHaveCount(2);
+
+    // The magnifier no longer sits on top of the placeholder text.
+    const gap = await page.locator('.list-search').evaluate((box) => {
+      const input = box.querySelector('input')!;
+      const icon = box.querySelector('.search-icon')!;
+      const rect = input.getBoundingClientRect();
+      return (
+        rect.left +
+        parseFloat(getComputedStyle(input).paddingLeft) -
+        icon.getBoundingClientRect().right
+      );
+    });
+    expect(gap).toBeGreaterThan(4);
+  });
+
   test('exports a timestamped backup and restores cards and chats after they are deleted', async ({
     page,
   }) => {
@@ -934,6 +1055,101 @@ test.describe('mobile', () => {
     await expect(page.locator('.chat-name-row h2')).toHaveText('测试角色·阿绫', {
       timeout: 20_000,
     });
+  });
+
+  test('welcome page is compact and its top-bar buttons stay clickable', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('.welcome')).toBeVisible();
+
+    // Seed seven cards through the settings dialog (which also proves the
+    // settings button works before the layout assertions).
+    await page.locator('.mobile-topbar button[aria-label="设置"]').tap();
+    const base = Date.now();
+    await page
+      .locator('.settings-modal input[type="file"][accept=".json,application/json"]')
+      .setInputFiles({
+        name: 'welcome-backup.json',
+        mimeType: 'application/json',
+        buffer: Buffer.from(
+          JSON.stringify({
+            format: 'lite-tavern-backup',
+            version: 1,
+            exportedAt: base,
+            characters: Array.from({ length: 7 }, (_, i) => ({
+              id: `welcome-card-${i}`,
+              name: `欢迎卡 ${i + 1}`,
+              createdAt: base - i * 1000,
+              updatedAt: base - i * 1000,
+            })),
+            worldBooks: [],
+            chats: [],
+          }),
+        ),
+      });
+    await page.getByRole('button', { name: '导入', exact: true }).click();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.settings-scroll')).toHaveCount(0);
+
+    // Only the title remains under the logo; count moved next to the pager.
+    await expect(page.locator('.welcome-lead')).toHaveCount(0);
+    await expect(page.locator('.welcome-tip')).toHaveCount(0);
+    await expect(page.locator('.welcome-foot')).toHaveCount(0);
+    await expect(page.locator('.welcome h1')).toHaveText('轻语酒馆');
+    await expect(page.locator('.welcome-count')).toHaveText('共 7 张');
+    await expect(page.locator('.welcome-pager')).toBeVisible();
+    const cardHeights = await page
+      .locator('.welcome-card')
+      .evaluateAll((cards) => cards.map((card) => card.getBoundingClientRect().height));
+    expect(cardHeights.length).toBe(6);
+    expect(Math.max(...cardHeights)).toBeLessThan(130);
+
+    const topbarHits = () =>
+      page.evaluate(() =>
+        [...document.querySelectorAll<HTMLElement>('.mobile-topbar .icon-btn')].map((button) => {
+          const rect = button.getBoundingClientRect();
+          const hit = document.elementFromPoint(
+            rect.left + rect.width / 2,
+            rect.top + rect.height / 2,
+          );
+          return hit?.closest('button')?.getAttribute('aria-label') ?? null;
+        }),
+      );
+    expect(await topbarHits()).toEqual(['对话列表', '角色卡', '设置']);
+
+    // Scrolling the welcome content no longer carries the bar out of reach.
+    await page.locator('.welcome-scroll').evaluate((element) => {
+      element.scrollTop = element.scrollHeight;
+    });
+    await expect(page.locator('.mobile-topbar')).toBeInViewport();
+    expect(await topbarHits()).toEqual(['对话列表', '角色卡', '设置']);
+
+    await page.locator('.mobile-topbar button[aria-label="对话列表"]').tap();
+    await expect(page.locator('.app')).toHaveClass(/show-left/);
+    await page.locator('.drawer-backdrop').click({ position: { x: 370, y: 400 } });
+    await expect(page.locator('.app')).not.toHaveClass(/show-left/);
+
+    await page.locator('.mobile-topbar button[aria-label="角色卡"]').tap();
+    await expect(page.locator('.app')).toHaveClass(/show-right/);
+    await page.locator('.drawer-backdrop').click({ position: { x: 20, y: 400 } });
+    await expect(page.locator('.app')).not.toHaveClass(/show-right/);
+
+    await page.locator('.mobile-topbar button[aria-label="设置"]').tap();
+    await expect(page.locator('.settings-scroll')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.settings-scroll')).toHaveCount(0);
+
+    // The search icon and the placeholder no longer overlap.
+    const gap = await page.locator('.list-search').evaluate((box) => {
+      const input = box.querySelector('input')!;
+      const icon = box.querySelector('.search-icon')!;
+      const rect = input.getBoundingClientRect();
+      return (
+        rect.left +
+        parseFloat(getComputedStyle(input).paddingLeft) -
+        icon.getBoundingClientRect().right
+      );
+    });
+    expect(gap).toBeGreaterThan(4);
   });
 
   test('responsive drawers and chat on phone viewport', async ({ page }) => {
