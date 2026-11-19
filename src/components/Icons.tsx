@@ -8,7 +8,7 @@ const base = {
   viewBox: '0 0 24 24',
   fill: 'none',
   stroke: 'currentColor',
-  strokeWidth: 1.8,
+  strokeWidth: 1.5,
   strokeLinecap: 'round' as const,
   strokeLinejoin: 'round' as const,
 };
@@ -141,22 +141,16 @@ export const IconSearch = (p: P) => (
   </svg>
 );
 
+/** Flat mark: one spoken line inside a speech box, drawn in the current colour. */
 export const IconLogo = (p: P) => (
   <svg viewBox="0 0 40 40" width={40} height={40} fill="none" {...p}>
-    <rect width="40" height="40" rx="12" fill="url(#lt-g)" />
     <path
-      d="M11 15.5A4.5 4.5 0 0 1 15.5 11h9a4.5 4.5 0 0 1 4.5 4.5v6a4.5 4.5 0 0 1-4.5 4.5H19l-5.2 4.1a.8.8 0 0 1-1.3-.62V25.4A4.5 4.5 0 0 1 11 21.5v-6Z"
-      fill="#1a1512"
-      fillOpacity=".92"
+      d="M11 9.5h18a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3h-9.6l-5.6 4.2a.8.8 0 0 1-1.3-.64V27.5H11a3 3 0 0 1-3-3v-12a3 3 0 0 1 3-3Z"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinejoin="round"
     />
-    <path d="M16 17.5h8M16 21h5" stroke="#f3c98b" strokeWidth="2" strokeLinecap="round" />
-    <circle cx="29.5" cy="10.5" r="2.5" fill="#f3c98b" />
-    <defs>
-      <linearGradient id="lt-g" x1="0" y1="0" x2="40" y2="40">
-        <stop stopColor="#e8b46f" />
-        <stop offset="1" stopColor="#b9754c" />
-      </linearGradient>
-    </defs>
+    <path d="M15 16.5h10M15 21h6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
   </svg>
 );
 

@@ -1,12 +1,12 @@
-﻿import type { CapacitorConfig } from '@capacitor/cli';
+import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.lite.tavern',
   appName: '轻语酒馆',
   webDir: 'dist',
-  backgroundColor: '#0d0b11',
+  backgroundColor: '#141210',
   android: {
-    backgroundColor: '#0d0b11',
+    backgroundColor: '#141210',
     allowMixedContent: true,
     captureInput: true,
   },

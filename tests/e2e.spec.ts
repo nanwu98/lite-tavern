@@ -1045,6 +1045,27 @@ test.describe('mobile', () => {
     deviceScaleFactor: 2,
   });
 
+  test('send button follows text that arrives without input events', async ({ page }) => {
+    // Some Android IMEs commit text straight into the textarea without firing
+    // `input`, which used to leave the send button disabled forever.
+    await importCard(page);
+    const composer = page.getByLabel('输入消息');
+    const send = page.getByLabel('发送');
+    await expect(send).toBeDisabled();
+    await composer.click();
+
+    await composer.evaluate((element) => {
+      (element as HTMLTextAreaElement).value = '啊啊啊';
+    });
+    await expect(composer).toHaveValue('啊啊啊');
+    await expect(send).toBeEnabled({ timeout: 2_000 });
+
+    await composer.evaluate((element) => {
+      (element as HTMLTextAreaElement).value = '';
+    });
+    await expect(send).toBeDisabled({ timeout: 2_000 });
+  });
+
   test('welcome import button opens the picker inside the tap gesture', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('.brand-title')).toBeVisible();
@@ -1090,12 +1111,13 @@ test.describe('mobile', () => {
     await page.keyboard.press('Escape');
     await expect(page.locator('.settings-scroll')).toHaveCount(0);
 
-    // Only the title remains under the logo; count moved next to the pager.
-    await expect(page.locator('.welcome-lead')).toHaveCount(0);
+    // One line of product copy under the title, then the card wall; the count
+    // now sits in the wall's own header instead of next to the pager.
+    await expect(page.locator('.welcome-lead')).toBeVisible();
     await expect(page.locator('.welcome-tip')).toHaveCount(0);
     await expect(page.locator('.welcome-foot')).toHaveCount(0);
     await expect(page.locator('.welcome h1')).toHaveText('轻语酒馆');
-    await expect(page.locator('.welcome-count')).toHaveText('共 7 张');
+    await expect(page.locator('.welcome-section-head span')).toHaveText('7 张');
     await expect(page.locator('.welcome-pager')).toBeVisible();
     const cardHeights = await page
       .locator('.welcome-card')

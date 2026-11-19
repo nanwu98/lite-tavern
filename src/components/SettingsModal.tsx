@@ -17,14 +17,7 @@ import {
 import { backupFileName, parseBackup, statsSummary, type BackupPayload } from '../lib/backup';
 import { pickTextFile, saveTextFile } from '../lib/backupFile';
 import { blobToDataUrl, shrinkDataUrl } from '../lib/image';
-import {
-  IconAlert,
-  IconArchive,
-  IconCheck,
-  IconCompress,
-  IconRefresh,
-  IconSparkles,
-} from './Icons';
+import { IconAlert, IconArchive, IconCheck, IconCompress, IconRefresh } from './Icons';
 import { UpdateSection } from './UpdateSection';
 
 interface SettingsModalProps {
@@ -281,9 +274,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
     >
       <div className="settings-scroll">
         <section className="settings-section">
-          <div className="section-title">
-            <IconSparkles width={16} height={16} /> 模型服务
-          </div>
+          <div className="section-title">模型服务</div>
           <div className="field-row">
             <div className="field">
               <label htmlFor="provider">服务商</label>

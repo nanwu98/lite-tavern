@@ -7,12 +7,12 @@ import {
   IconBook,
   IconChevronLeft,
   IconChevronRight,
+  IconLogo,
   IconMore,
   IconPin,
   IconPlus,
   IconSearch,
   IconSettings,
-  IconSparkles,
   IconTrash,
 } from './Icons';
 import { formatTime, truncate } from '../lib/util';
@@ -207,7 +207,7 @@ export function ChatList({
     <aside className="panel chat-list-panel">
       <div className="brand">
         <div className="brand-mark">
-          <IconSparkles width={20} height={20} />
+          <IconLogo width={18} height={18} />
         </div>
         <div className="brand-text">
           <div className="brand-title">轻语酒馆</div>
@@ -241,7 +241,7 @@ export function ChatList({
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="搜索对话…"
+          placeholder="搜索"
           aria-label="搜索对话"
         />
       </div>
@@ -249,7 +249,7 @@ export function ChatList({
       <div className="list-scroll">
         {visible.length === 0 ? (
           <div className="panel-empty">
-            <IconSparkles width={26} height={26} />
+            <IconBook width={22} height={22} />
             <p>
               {chats.length > 0 && archivedAll.length === chats.length
                 ? '所有对话都已归档'

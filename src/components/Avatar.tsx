@@ -29,13 +29,13 @@ export function Avatar({ src, name, size = 40, className = '' }: AvatarProps) {
       />
     );
   }
+  // One neutral tile for every character: the card's name carries the identity,
+  // not a randomly hashed hue. `data-hue` is kept for the card menu's tint.
   return (
     <span
       className={`avatar avatar-fallback ${className}`}
-      style={{
-        ...style,
-        background: `linear-gradient(145deg, hsl(${hue(name)} 32% 38%), hsl(${(hue(name) + 40) % 360} 28% 24%))`,
-      }}
+      style={style}
+      data-hue={hue(name)}
       aria-hidden="true"
     >
       {initial}

@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore } from '../store';
-import { IconAlert, IconCheck, IconSparkles, IconX } from './Icons';
+import { IconAlert, IconCheck, IconX } from './Icons';
 
 function ToastItem({
   id,
@@ -20,9 +20,7 @@ function ToastItem({
 
   return (
     <div className={`toast toast-${type}`} role={type === 'error' ? 'alert' : 'status'}>
-      <span className="toast-icon">
-        {type === 'success' ? <IconCheck /> : type === 'error' ? <IconAlert /> : <IconSparkles />}
-      </span>
+      <span className="toast-icon">{type === 'success' ? <IconCheck /> : <IconAlert />}</span>
       <span className="toast-text">{message}</span>
       <button className="toast-close" onClick={() => dismiss(id)} aria-label="关闭提示">
         <IconX width={14} height={14} />

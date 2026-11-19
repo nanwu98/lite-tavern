@@ -18,9 +18,9 @@ import {
   IconChevronRight,
   IconEdit,
   IconLogo,
+  IconMenu,
   IconPlus,
   IconSettings,
-  IconSparkles,
   IconX,
 } from './components/Icons';
 import { Pager } from './components/Pager';
@@ -119,14 +119,14 @@ function Welcome({
     <main className="chat-view welcome">
       <div className="mobile-topbar mobile-only">
         <div className="mobile-brand">
-          <IconSparkles width={18} height={18} /> 轻语酒馆
+          <IconLogo width={18} height={18} /> 轻语酒馆
         </div>
         <div className="mobile-top-actions">
           <button className="icon-btn" onClick={onOpenChats} aria-label="对话列表">
-            <IconBook />
+            <IconMenu />
           </button>
           <button className="icon-btn" onClick={onOpenCards} aria-label="角色卡">
-            <IconSparkles />
+            <IconBook />
           </button>
           <button className="icon-btn" onClick={onOpenSettings} aria-label="设置">
             <IconSettings />
@@ -137,25 +137,48 @@ function Welcome({
       <div className="welcome-scroll">
         <div className="welcome-inner">
           <div className="welcome-mark">
-            <IconLogo width={54} height={54} />
+            <IconLogo width={40} height={40} />
           </div>
           <h1>轻语酒馆</h1>
+          <p className="welcome-lead">
+            角色卡、世界书和对话都留在这台设备上。挑一张卡，从它的开场白开始。
+          </p>
           {characters.length === 0 ? (
-            <div className="welcome-actions">
-              <button className="btn btn-accent btn-large" onClick={onImport}>
-                <IconPlus width={18} height={18} /> 导入角色卡
-              </button>
-              <button className="btn btn-ghost btn-large" onClick={onCreate}>
-                <IconEdit width={18} height={18} /> 手动新建
-              </button>
-            </div>
+            <>
+              <div className="welcome-actions">
+                <button className="btn btn-accent btn-large" onClick={onImport}>
+                  <IconPlus width={18} height={18} /> 导入角色卡
+                </button>
+                <button className="btn btn-ghost btn-large" onClick={onCreate}>
+                  <IconEdit width={18} height={18} /> 手动新建
+                </button>
+              </div>
+              <dl className="welcome-facts">
+                <div className="welcome-fact">
+                  <dt>格式</dt>
+                  <dd>PNG / JSON</dd>
+                </div>
+                <div className="welcome-fact">
+                  <dt>世界书</dt>
+                  <dd>随卡挂载</dd>
+                </div>
+                <div className="welcome-fact">
+                  <dt>存放</dt>
+                  <dd>只在本机</dd>
+                </div>
+              </dl>
+            </>
           ) : (
             <>
+              <div className="welcome-section-head">
+                <h2>角色卡</h2>
+                <span>{characters.length} 张</span>
+              </div>
               <div className="welcome-cards">
                 {pageCharacters.map((character) => (
                   <div className="welcome-card" key={character.id}>
                     <button className="welcome-card-main" onClick={() => onPick(character.id)}>
-                      <Avatar src={character.avatar} name={character.name} size={44} />
+                      <Avatar src={character.avatar} name={character.name} size={36} />
                       <span className="welcome-card-name">{character.name}</span>
                     </button>
                     <button
@@ -180,7 +203,6 @@ function Welcome({
                   className="welcome-pager"
                   label="角色卡分页"
                 />
-                <span className="welcome-count">共 {characters.length} 张</span>
               </div>
               <div className="welcome-actions-row">
                 <button className="btn btn-small btn-ghost" onClick={onImport}>

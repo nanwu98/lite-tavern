@@ -17,7 +17,7 @@ let bossKeyAccelerator = null;
 const approvedPaths = new Set();
 let portableDataDir = null;
 
-const THEME_COLORS = { dark: '#0d0b11', light: '#f3ece3' };
+const THEME_COLORS = { dark: '#141210', light: '#f0ebe0' };
 
 function toggleWindow() {
   if (!mainWindow) return;
@@ -105,7 +105,7 @@ function createWindow() {
     minWidth: 960,
     minHeight: 620,
     title: '轻语酒馆',
-    backgroundColor: '#0d0b11',
+    backgroundColor: '#141210',
     autoHideMenuBar: true,
     show: false,
     icon: path.join(__dirname, '..', 'build', 'icon.ico'),

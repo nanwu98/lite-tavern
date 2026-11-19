@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import type { Character, WorldBook } from '../types';
 import { Avatar } from './Avatar';
 import { Pager } from './Pager';
-import { IconBook, IconChevronRight, IconEdit, IconPlus, IconSparkles, IconTrash } from './Icons';
+import { IconBook, IconChevronRight, IconEdit, IconPlus, IconTrash } from './Icons';
 import { truncate } from '../lib/util';
 import { paginate } from '../lib/pagination';
 
@@ -175,7 +175,7 @@ export function CharacterRail({
       <div className="rail-head">
         <div>
           <h2>角色卡</h2>
-          <p>{characters.length} 张 · PNG / JSON / 手写</p>
+          <p>{characters.length} 张</p>
         </div>
         <div className="rail-head-actions">
           {onCollapse && (
@@ -223,10 +223,7 @@ export function CharacterRail({
               <IconBook width={28} height={28} />
             </div>
             <h3>导入或手写第一张卡</h3>
-            <p>
-              支持酒馆 PNG / JSON
-              角色卡，卡内嵌的世界书会自动挂载；也可以只填提示词和开场白，手写一张。
-            </p>
+            <p>PNG / JSON 卡会自动带上内嵌世界书；也可以手写一张。</p>
             <div className="empty-actions">
               <label
                 className="btn btn-accent"
@@ -406,7 +403,7 @@ export function CharacterRail({
                   onViewWorldBooks(menuCharacter);
                 }}
               >
-                <IconSparkles width={15} height={15} /> 查看世界书
+                <IconBook width={15} height={15} /> 查看世界书
               </button>
               <div className="menu-sep" />
               <button

@@ -16,7 +16,7 @@ using System.Windows.Forms;
 static class Program
 {
     // Replaced with package.json's version by scripts/build-windows.ps1.
-    private const string AppVersion = "__APP_VERSION__";
+    private const string AppVersion = "1.8.0";
 
     [STAThread]
     private static void Main(string[] args)

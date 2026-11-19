@@ -1,6 +1,5 @@
 import type { ProviderModel } from '../lib/providers';
 import { Dropdown } from './Dropdown';
-import { IconSparkles } from './Icons';
 
 interface ModelPickerProps {
   id?: string;
@@ -45,11 +44,7 @@ export function ModelPicker({
       customHint="使用自定义模型名"
       ariaLabel="模型列表"
       emptyText="没有匹配的模型。换个关键词，或直接输入模型名后回车。"
-      footer={
-        <>
-          <IconSparkles width={11} height={11} /> 可手动输入任意模型名，以服务商控制台为准
-        </>
-      }
+      footer={<>可手动输入任意模型名，以服务商控制台为准</>}
     />
   );
 }

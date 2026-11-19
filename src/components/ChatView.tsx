@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Character, Chat, ChatMessage, WorldBook } from '../types';
 import { useStore, messageVariants, activeSwipeIndex } from '../store';
 import { useChat } from '../hooks/useChat';
+import { syncControlledTextarea } from '../lib/composerInput';
 import { Avatar } from './Avatar';
 import { Modal } from './Modal';
 import { ChatSettingsModal } from './ChatSettingsModal';
@@ -147,6 +148,12 @@ function MessageRow({
       window.clearTimeout(timer);
       window.removeEventListener(KEYBOARD_EVENT, reveal);
     };
+  }, [editing]);
+
+  // Same IME problem as the composer: keep the draft in step with the DOM.
+  useEffect(() => {
+    if (!editing) return;
+    return syncControlledTextarea(editRef.current, setDraft);
   }, [editing]);
 
   const copy = async () => {
@@ -475,6 +482,10 @@ export function ChatView({
     el.style.height = 'auto';
     el.style.height = `${Math.min(180, el.scrollHeight)}px`;
   }, [input]);
+
+  // Android keyboards can commit text without the events React listens to, which
+  // leaves the controlled value empty while the box shows text (send stays grey).
+  useEffect(() => syncControlledTextarea(textareaRef.current, setInput), []);
 
   const onScroll = () => {
     const el = scrollRef.current;
