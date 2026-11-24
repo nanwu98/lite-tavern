@@ -19,6 +19,7 @@ import { pickTextFile, saveTextFile } from '../lib/backupFile';
 import { blobToDataUrl, shrinkDataUrl } from '../lib/image';
 import { IconAlert, IconArchive, IconCheck, IconCompress, IconRefresh } from './Icons';
 import { UpdateSection } from './UpdateSection';
+import { useImeSync } from '../hooks/useImeSync';
 
 interface SettingsModalProps {
   open: boolean;
@@ -53,6 +54,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const apiKeyInputRef = useRef<HTMLInputElement | null>(null);
   const backupInputRef = useRef<HTMLInputElement | null>(null);
   const userAvatarInputRef = useRef<HTMLInputElement | null>(null);
+  const personaRef = useRef<HTMLTextAreaElement | null>(null);
   const exportBackup = useStore((s) => s.exportBackup);
   const importBackup = useStore((s) => s.importBackup);
   const [backupCards, setBackupCards] = useState(true);
@@ -125,6 +127,10 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   }, [open, settings]);
 
   const patch = (p: Partial<Settings>) => setDraft((d) => ({ ...d, ...p }));
+
+  // The persona is long-form text people paste into; keep it in step with the
+  // DOM even when the IME commits without firing `input`.
+  useImeSync(personaRef, (value) => patch({ userPersona: value }), open);
 
   const pickUserAvatar = async (file: File | null) => {
     if (!file) return;
@@ -504,6 +510,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             <label htmlFor="user-persona">你的设定（可选，会以 {'{{user}}'} 身份写入提示词）</label>
             <textarea
               id="user-persona"
+              ref={personaRef}
               rows={3}
               value={draft.userPersona}
               onChange={(e) => patch({ userPersona: e.target.value })}

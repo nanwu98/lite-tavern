@@ -3,6 +3,7 @@ import type { Character } from '../types';
 import { Modal } from './Modal';
 import { useStore } from '../store';
 import { blobToDataUrl, shrinkDataUrl } from '../lib/image';
+import { useImeSync } from '../hooks/useImeSync';
 import { IconAlert } from './Icons';
 
 interface CardEditorModalProps {
@@ -44,6 +45,8 @@ export function CardEditorModal({ open, character, onClose, onSaved }: CardEdito
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const nameRef = useRef<HTMLInputElement | null>(null);
+  const promptRef = useRef<HTMLTextAreaElement | null>(null);
+  const greetingRef = useRef<HTMLTextAreaElement | null>(null);
   const wasOpen = useRef(false);
 
   useEffect(() => {
@@ -58,6 +61,11 @@ export function CardEditorModal({ open, character, onClose, onSaved }: CardEdito
     setError(null);
     setDraft((current) => ({ ...current, ...value }));
   };
+
+  // Android IMEs can paste text without firing an `input` event; without the
+  // fallback the pasted prompt would sit in the box but never reach the draft.
+  useImeSync(promptRef, (value) => patch({ systemPrompt: value }), open);
+  useImeSync(greetingRef, (value) => patch({ firstMes: value }), open);
 
   const pickAvatar = async (file: File | null) => {
     if (!file) return;
@@ -201,6 +209,7 @@ export function CardEditorModal({ open, character, onClose, onSaved }: CardEdito
           <label htmlFor="card-prompt">提示词（写入系统提示词）</label>
           <textarea
             id="card-prompt"
+            ref={promptRef}
             className="card-editor-textarea"
             value={draft.systemPrompt}
             onChange={(e) => patch({ systemPrompt: e.target.value })}
@@ -216,6 +225,7 @@ export function CardEditorModal({ open, character, onClose, onSaved }: CardEdito
           <label htmlFor="card-greeting">开场白（AI 的第一条消息）</label>
           <textarea
             id="card-greeting"
+            ref={greetingRef}
             className="card-editor-textarea"
             value={draft.firstMes}
             onChange={(e) => patch({ firstMes: e.target.value })}

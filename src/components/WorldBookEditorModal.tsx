@@ -4,6 +4,7 @@ import { Modal } from './Modal';
 import { useStore } from '../store';
 import { createEmptyEntry } from '../lib/worldbook';
 import { IconPlus, IconTrash } from './Icons';
+import { useImeSync } from '../hooks/useImeSync';
 
 interface WorldBookEditorModalProps {
   open: boolean;
@@ -43,7 +44,12 @@ function EntryEditor({
 }) {
   const [open, setOpen] = useState(index === 0);
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const contentRef = useRef<HTMLTextAreaElement | null>(null);
   const fieldId = (name: string) => `wb-entry-${index}-${name}`;
+
+  // Same IME safety net as the composer: entry bodies are long text people
+  // paste into, and an IME commit without `input` must not be lost.
+  useImeSync(contentRef, (value) => onChange({ content: value }), open);
 
   // The list scrolls inside the dialog, so an entry opened near the bottom has
   // its fields below the fold; bring the whole card into view when it expands.
@@ -113,6 +119,7 @@ function EntryEditor({
             <label htmlFor={fieldId('content')}>内容（命中后注入提示词）</label>
             <textarea
               id={fieldId('content')}
+              ref={contentRef}
               rows={5}
               value={entry.content}
               onChange={(e) => onChange({ content: e.target.value })}

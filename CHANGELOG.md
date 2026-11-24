@@ -4,6 +4,29 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.8.1] - 2026-11-24
+
+### Fixed
+
+- **手机输入法在输入框里「点一下没反应，松开才有反应」**：之前 Android 壳层开着
+  Capacitor 的 `captureInput`，WebView 拿到的是一段脱离页面的输入连接
+  （`BaseInputConnection`）。输入法打拼音时，组合中的字母和候选到不了输入框，
+  只能等选定词语、整字提交后一次性出现；长按删除键再上滑「清空」的指令也被吞掉。
+  现在关掉它，改回 WebView 自带的输入连接，组合输入、长按连删、上滑清空都恢复成
+  和其他 App 一样。
+- **提示词、开场白这些长文本输入框用输入法剪贴板粘不进去**：这些框只有 React 的
+  受控值，没有聊天输入框那套「原生事件 + 聚焦轮询」兜底。输入法直接写进 DOM 的
+  文字 React 并不知道，下一次重渲染就被旧值覆盖，表现为「粘贴了但没进去」。
+  现在角色卡的提示词 / 开场白、设置里的「你的设定」、世界书词条内容都接上了同一套
+  同步；同步在 IME 组词期间主动让路，不会反过来打断删除和粘贴。
+
+### Notes
+
+- 兜底同步在组合输入（`compositionstart` 到 `compositionend`）期间不再回写，
+  这样即使个别输入法仍然不发 `input`，也不会打断长按删除和剪贴板粘贴。
+- 单测 134 项全过（新增 4 项输入框同步回归）；已在某品牌手机实机上回归：输入法
+  打字与联想、长按删除键连删、上滑清空输入框。
+
 ## [1.8.0] - 2026-11-19
 
 ### Changed — UI 大改版
