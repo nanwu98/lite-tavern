@@ -8,6 +8,9 @@ import { eventBus, tavern_events } from '../lib/tavern/events';
 import { settingsForChat } from '../lib/chatSettings';
 import type { ChatMessage } from '../types';
 
+/** How often streamed text reaches the store while a reply is generating. */
+const FLUSH_INTERVAL = 50;
+
 function errorText(error: unknown): string {
   if (error instanceof ApiError) return error.message;
   if (error instanceof Error) return error.message;
@@ -40,7 +43,14 @@ export function useChat(onNeedSettings: () => void) {
     ) => {
       const controller = new AbortController();
       abortRef.current = controller;
+      // One store update per token re-renders the whole conversation, but only
+      // flushing when the *next* token happens to arrive is what made replies
+      // appear in one- to two-second lumps. Buffer instead and write on a fixed
+      // cadence: the first token shows immediately, the rest follow every
+      // FLUSH_INTERVAL, and a timer guarantees the tail is never stranded.
       let pending = '';
+      let pendingReasoning = '';
+      let flushTimer: ReturnType<typeof setTimeout> | null = null;
       let lastFlush = 0;
       const chatState = useStore.getState();
       const chat = chatState.chats.find((c) => c.id === chatId);
@@ -104,13 +114,35 @@ export function useChat(onNeedSettings: () => void) {
       }
       useStore.getState().setMessageLore(chatId, assistantId, prompt.activeTitles);
 
-      const flush = (force = false) => {
-        if (!pending) return;
-        if (!force && Date.now() - lastFlush < 45) return;
-        const delta = pending;
+      /** Writes whatever is buffered and always lands the trailing edge. */
+      const flush = () => {
+        if (flushTimer) {
+          clearTimeout(flushTimer);
+          flushTimer = null;
+        }
+        if (!pending && !pendingReasoning) return;
+        const text = pending;
+        const reasoning = pendingReasoning;
         pending = '';
+        pendingReasoning = '';
         lastFlush = Date.now();
-        useStore.getState().appendDelta(chatId, assistantId, delta);
+        const store = useStore.getState();
+        // Thinking always precedes the answer, so it is written first.
+        if (reasoning) store.appendReasoning(chatId, assistantId, reasoning);
+        if (text) store.appendDelta(chatId, assistantId, text);
+      };
+
+      const scheduleFlush = () => {
+        if (flushTimer) return;
+        const wait = FLUSH_INTERVAL - (Date.now() - lastFlush);
+        if (wait <= 0) {
+          flush();
+          return;
+        }
+        flushTimer = setTimeout(() => {
+          flushTimer = null;
+          flush();
+        }, wait);
       };
 
       void eventBus.emit(tavern_events.GENERATION_STARTED, 'normal', {}, false);
@@ -122,10 +154,14 @@ export function useChat(onNeedSettings: () => void) {
           signal: controller.signal,
           onDelta: (text) => {
             pending += text;
-            flush();
+            scheduleFlush();
+          },
+          onReasoning: (text) => {
+            pendingReasoning += text;
+            scheduleFlush();
           },
         });
-        flush(true);
+        flush();
         if (!full.trim()) {
           useStore.getState().failMessage(chatId, assistantId, '模型返回了空内容，请重试。');
           return;
@@ -135,7 +171,7 @@ export function useChat(onNeedSettings: () => void) {
         emitChatEvent(tavern_events.CHARACTER_MESSAGE_RENDERED, chatId, assistantId);
         void eventBus.emit(tavern_events.GENERATION_ENDED, assistantId);
       } catch (error) {
-        flush(true);
+        flush();
         const current = useStore
           .getState()
           .chats.find((c) => c.id === chatId)
@@ -166,6 +202,7 @@ export function useChat(onNeedSettings: () => void) {
         }
         void eventBus.emit(tavern_events.GENERATION_STOPPED);
       } finally {
+        if (flushTimer) clearTimeout(flushTimer);
         if (abortRef.current === controller) abortRef.current = null;
       }
     },

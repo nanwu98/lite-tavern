@@ -87,6 +87,45 @@ function SwipeControls({
   );
 }
 
+/**
+ * The model's chain of thought. It streams open, folds itself away the moment
+ * the answer starts and can be reopened by clicking the header.
+ */
+function ReasoningBlock({ message }: { message: ChatMessage }) {
+  const reasoning = message.reasoning ?? '';
+  const thinking = !message.reasoningDone;
+  const [manual, setManual] = useState<boolean | null>(null);
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+  const open = manual ?? thinking;
+
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (el && open) el.scrollTop = el.scrollHeight;
+  }, [reasoning, open]);
+
+  if (!reasoning) return null;
+  return (
+    <div className={'reasoning ' + (open ? 'is-open ' : '') + (thinking ? 'is-thinking' : '')}>
+      <button
+        className="reasoning-head"
+        onClick={() => setManual(!open)}
+        aria-expanded={open}
+        title={open ? '收起思考过程' : '展开思考过程'}
+      >
+        <span className="reasoning-dot" />
+        <span className="reasoning-title">{thinking ? '正在思考…' : '思考过程'}</span>
+        <span className="reasoning-meta">{reasoning.length} 字</span>
+        <span className="reasoning-chevron">▾</span>
+      </button>
+      {open && (
+        <div className="reasoning-body" ref={bodyRef}>
+          {reasoning}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MessageRow({
   message,
   character,
@@ -280,6 +319,7 @@ function MessageRow({
             </button>
           )}
         </div>
+        {!editing && <ReasoningBlock message={message} />}
         {editing ? (
           editor
         ) : message.status === 'error' ? (
@@ -395,6 +435,7 @@ export function ChatView({
   const busy = busyChatId === chat.id;
   const toast = useStore((s) => s.toast);
   const settings = useStore((s) => s.settings);
+  const updateSettings = useStore((s) => s.updateSettings);
   const model = settings.model;
   const cardScriptsEnabled = settings.cardScripts;
   const streamingMessageId = useStore((s) => s.streamingMessageId);
@@ -630,6 +671,20 @@ export function ChatView({
       </div>
 
       <footer className="composer-wrap">
+        <div className="composer-tools">
+          <label
+            className={'switch thinking-switch' + (settings.thinking ? ' is-on' : '')}
+            title="开启后请求会带上 thinking 参数，模型先思考再回答（DeepSeek 等支持）"
+          >
+            <input
+              type="checkbox"
+              checked={settings.thinking}
+              onChange={(e) => updateSettings({ thinking: e.target.checked })}
+            />
+            <span className="switch-track" />
+            <span>深度思考</span>
+          </label>
+        </div>
         <div className="composer">
           <textarea
             ref={textareaRef}

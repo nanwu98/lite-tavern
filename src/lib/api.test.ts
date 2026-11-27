@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   ApiError,
   chatEndpoint,
@@ -9,6 +9,7 @@ import {
   modelsEndpoint,
   normalizeBaseUrl,
   parseModelList,
+  streamChat,
 } from './api';
 import { DEFAULT_SETTINGS } from '../defaults';
 
@@ -113,5 +114,76 @@ describe('model list parsing', () => {
     });
     expect(qwen[0]).toBe('https://dashscope.aliyuncs.com/compatible-mode/v1/models');
     expect(qwen).toContain('https://dashscope.aliyuncs.com/api/v1/models');
+  });
+});
+
+describe('thinking mode', () => {
+  const sse = (chunks: string[]) =>
+    new ReadableStream<Uint8Array>({
+      start(controller) {
+        const encoder = new TextEncoder();
+        for (const chunk of chunks) controller.enqueue(encoder.encode(chunk));
+        controller.close();
+      },
+    });
+
+  it('streams the chain of thought before the answer and asks for thinking', async () => {
+    const fetchMock = vi.fn(
+      async (_url: string, _init: RequestInit) =>
+        new Response(
+          sse([
+            'data: {"choices":[{"delta":{"reasoning_content":"先想"}}]}\n\n',
+            'data: {"choices":[{"delta":{"reasoning_content":"一下"}}]}\n\n',
+            'data: {"choices":[{"delta":{"content":"你好"}}]}\n\n',
+            'data: [DONE]\n\n',
+          ]),
+          { status: 200, headers: { 'content-type': 'text/event-stream' } },
+        ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    try {
+      const reasoning: string[] = [];
+      const deltas: string[] = [];
+      const text = await streamChat({
+        settings: { ...DEFAULT_SETTINGS, apiKey: 'test-key', thinking: true },
+        messages: [{ role: 'user', content: 'hi' }],
+        onDelta: (chunk) => deltas.push(chunk),
+        onReasoning: (chunk) => reasoning.push(chunk),
+      });
+      expect(text).toBe('你好');
+      expect(reasoning.join('')).toBe('先想一下');
+      expect(deltas.join('')).toBe('你好');
+      const sent = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as Record<string, unknown>;
+      expect(sent.thinking).toEqual({ type: 'enabled' });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('leaves thinking out of the request unless the user turned it on', async () => {
+    const fetchMock = vi.fn(
+      async (_url: string, _init: RequestInit) =>
+        new Response(
+          JSON.stringify({
+            choices: [{ message: { content: '答', reasoning_content: '想' } }],
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    try {
+      const reasoning: string[] = [];
+      const text = await streamChat({
+        settings: { ...DEFAULT_SETTINGS, apiKey: 'test-key', stream: false },
+        messages: [{ role: 'user', content: 'hi' }],
+        onReasoning: (chunk) => reasoning.push(chunk),
+      });
+      expect(text).toBe('答');
+      expect(reasoning).toEqual(['想']);
+      const sent = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as Record<string, unknown>;
+      expect(sent).not.toHaveProperty('thinking');
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

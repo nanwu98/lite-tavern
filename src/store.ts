@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
+import { persist } from 'zustand/middleware';
+import type { PersistStorage, StorageValue } from 'zustand/middleware';
 import { del, get, set } from 'idb-keyval';
 import type {
   Character,
@@ -126,6 +127,8 @@ interface AppState {
   removeMessage: (chatId: string, messageId: string) => void;
   setMessageLore: (chatId: string, messageId: string, titles: string[]) => void;
   appendDelta: (chatId: string, messageId: string, delta: string) => void;
+  /** Streams the model's chain of thought into the message's thinking block. */
+  appendReasoning: (chatId: string, messageId: string, delta: string) => void;
   finishMessage: (chatId: string, messageId: string, status?: ChatMessage['status']) => void;
   failMessage: (
     chatId: string,
@@ -142,7 +145,23 @@ interface AppState {
   setBusy: (chatId: string | null, messageId?: string | null) => void;
 }
 
-let pendingWrite: { name: string; value: string } | null = null;
+/** The persisted subset of the store (see `partialize` below). */
+type PersistedState = Pick<
+  AppState,
+  'characters' | 'chats' | 'worldBooks' | 'settings' | 'activeChatId' | 'updateSeenVersion'
+>;
+
+/**
+ * Values are kept as objects until the debounced writer runs. Serialising the
+ * whole library (avatars are base64) on every store update was a large part of
+ * the streaming stutter: persist stringified the entire state for each token.
+ */
+type PendingValue = string | StorageValue<PersistedState>;
+let pendingWrite: { name: string; value: PendingValue } | null = null;
+
+function serializePending(value: PendingValue): string {
+  return typeof value === 'string' ? value : JSON.stringify(value);
+}
 let writeTimer: ReturnType<typeof setTimeout> | null = null;
 let writeChain: Promise<unknown> = Promise.resolve();
 let snapshotTimer: ReturnType<typeof setTimeout> | null = null;
@@ -165,7 +184,7 @@ function scheduleSnapshot(value: string) {
 
 /** Writes the newest state to the recovery snapshot right away (page close). */
 export function snapshotNow() {
-  const latest = pendingWrite?.value ?? snapshotPending;
+  const latest = pendingWrite ? serializePending(pendingWrite.value) : snapshotPending;
   if (latest && storeHasData(latest)) void writeSnapshot(latest);
 }
 
@@ -173,21 +192,25 @@ function commitWrite() {
   if (!pendingWrite) return;
   const item = pendingWrite;
   pendingWrite = null;
+  // Serialised here, once, instead of on every state update.
+  const value = serializePending(item.value);
   writeChain = writeChain
     .then(async () => {
-      await set(item.name, item.value);
+      await set(item.name, value);
       try {
-        if (localStorage.getItem(BACKUP_KEY) === item.value) localStorage.removeItem(BACKUP_KEY);
+        if (localStorage.getItem(BACKUP_KEY) === value) localStorage.removeItem(BACKUP_KEY);
       } catch {
         // localStorage can be unavailable in private modes; IndexedDB is the primary store.
       }
-      scheduleSnapshot(item.value);
+      scheduleSnapshot(value);
     })
     .catch(() => undefined);
 }
 
-function scheduleWrite(name: string, value: string) {
+function scheduleWrite(name: string, value: PendingValue) {
   pendingWrite = { name, value };
+  // While a reply streams this timer keeps being pushed back, so the expensive
+  // serialisation only happens once the burst is over (or when flushed).
   if (writeTimer) clearTimeout(writeTimer);
   writeTimer = setTimeout(commitWrite, 500);
 }
@@ -202,43 +225,62 @@ export function flushPersist() {
     writeTimer = null;
   }
   if (pendingWrite) {
+    const value = serializePending(pendingWrite.value);
     try {
-      localStorage.setItem(BACKUP_KEY, pendingWrite.value);
+      localStorage.setItem(BACKUP_KEY, value);
     } catch {
       // Ignore quota/privacy failures.
     }
-    scheduleSnapshot(pendingWrite.value);
+    scheduleSnapshot(value);
   }
   commitWrite();
 }
 
-const idbStorage = createJSONStorage(() => ({
-  getItem: async (name: string) => {
-    let localBackup: string | null = null;
+/** Newest stored copy of the library, as raw JSON, or null when there is none. */
+async function readStoredRaw(name: string): Promise<string | null> {
+  let localBackup: string | null = null;
+  try {
+    localBackup = localStorage.getItem(BACKUP_KEY);
+  } catch {
+    localBackup = null;
+  }
+  const stored = await get<string>(name);
+  // The crash backup only wins when it actually contains a library; a stale
+  // empty copy must never hide real data.
+  if (storeHasData(localBackup)) return localBackup;
+  if (stored && storeHasData(stored)) return stored;
+  // The main copy looks empty: fall back to the unattended snapshot, which
+  // lives outside IndexedDB and survives a damaged/partially-reset database.
+  const snapshot = await readSnapshot();
+  if (storeHasData(snapshot)) {
+    markSnapshotRestored();
+    return snapshot;
+  }
+  return stored ?? null;
+}
+
+/**
+ * Persist storage that hands `setItem` the live object instead of a string.
+ *
+ * `createJSONStorage` serialises on every `set`, which during a streamed reply
+ * meant `JSON.stringify` of the whole library twenty times a second. The write
+ * is debounced anyway, so the string is built in `commitWrite` instead.
+ */
+const idbStorage: PersistStorage<PersistedState> = {
+  getItem: async (name) => {
+    const raw = await readStoredRaw(name);
+    if (!raw) return null;
     try {
-      localBackup = localStorage.getItem(BACKUP_KEY);
+      return JSON.parse(raw) as StorageValue<PersistedState>;
     } catch {
-      localBackup = null;
+      return null;
     }
-    const stored = await get<string>(name);
-    // The crash backup only wins when it actually contains a library; a stale
-    // empty copy must never hide real data.
-    if (storeHasData(localBackup)) return localBackup;
-    if (stored && storeHasData(stored)) return stored;
-    // The main copy looks empty: fall back to the unattended snapshot, which
-    // lives outside IndexedDB and survives a damaged/partially-reset database.
-    const snapshot = await readSnapshot();
-    if (storeHasData(snapshot)) {
-      markSnapshotRestored();
-      return snapshot;
-    }
-    return stored ?? null;
   },
-  setItem: (name: string, value: string) => {
+  setItem: (name, value) => {
     scheduleWrite(name, value);
     return Promise.resolve();
   },
-  removeItem: async (name: string) => {
+  removeItem: async (name) => {
     await del(name);
     try {
       localStorage.removeItem(BACKUP_KEY);
@@ -246,7 +288,7 @@ const idbStorage = createJSONStorage(() => ({
       // Ignore.
     }
   },
-}));
+};
 
 function normalizeBookName(name: string): string {
   return name.trim().toLocaleLowerCase();
@@ -703,7 +745,14 @@ export const useStore = create<AppState>()(
               ? {
                   ...c,
                   messages: c.messages.map((m) =>
-                    m.id === messageId ? withSwipe(m, messageVariants(m), index) : m,
+                    m.id === messageId
+                      ? {
+                          // Thinking belongs to one variant; switching drops it.
+                          ...withSwipe(m, messageVariants(m), index),
+                          reasoning: undefined,
+                          reasoningDone: false,
+                        }
+                      : m,
                   ),
                   updatedAt: Date.now(),
                 }
@@ -739,7 +788,8 @@ export const useStore = create<AppState>()(
         if (!chat || !message) return false;
         const variants = [...messageVariants(message), ''];
         const next = withSwipe(
-          { ...message, status: 'streaming' as const },
+          // Every variant streams its own thinking block.
+          { ...message, status: 'streaming' as const, reasoning: undefined, reasoningDone: false },
           variants,
           variants.length - 1,
         );
@@ -835,7 +885,35 @@ export const useStore = create<AppState>()(
               ? {
                   ...c,
                   messages: c.messages.map((m) =>
-                    m.id === messageId ? patchActiveVariant(m, (text) => text + delta) : m,
+                    m.id === messageId
+                      ? {
+                          ...patchActiveVariant(m, (text) => text + delta),
+                          // The first word of prose ends the thinking phase, so
+                          // the UI can collapse the block above the bubble.
+                          ...(m.reasoning && !m.reasoningDone ? { reasoningDone: true } : {}),
+                        }
+                      : m,
+                  ),
+                  updatedAt: Date.now(),
+                }
+              : c,
+          ),
+        })),
+
+      appendReasoning: (chatId, messageId, delta) =>
+        set((state) => ({
+          chats: state.chats.map((c) =>
+            c.id === chatId
+              ? {
+                  ...c,
+                  messages: c.messages.map((m) =>
+                    m.id === messageId
+                      ? {
+                          ...m,
+                          reasoning: (m.reasoning ?? '') + delta,
+                          reasoningDone: false,
+                        }
+                      : m,
                   ),
                   updatedAt: Date.now(),
                 }
@@ -849,7 +927,11 @@ export const useStore = create<AppState>()(
             c.id === chatId
               ? {
                   ...c,
-                  messages: c.messages.map((m) => (m.id === messageId ? { ...m, status } : m)),
+                  messages: c.messages.map((m) =>
+                    m.id === messageId
+                      ? { ...m, status, ...(m.reasoning ? { reasoningDone: true } : {}) }
+                      : m,
+                  ),
                   updatedAt: Date.now(),
                 }
               : c,

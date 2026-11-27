@@ -104,6 +104,10 @@ export interface ChatMessage {
   swipeId?: number;
   /** True once the user edited the active variant by hand. */
   edited?: boolean;
+  /** Chain of thought behind the active variant (DeepSeek thinking mode). */
+  reasoning?: string;
+  /** Set once the answer itself starts, so the UI collapses the thinking block. */
+  reasoningDone?: boolean;
 }
 
 /**
@@ -185,6 +189,11 @@ export interface Settings {
   autoCompact: boolean;
   loreBudget: number;
   stream: boolean;
+  /**
+   * Ask the provider to reason before answering (DeepSeek thinking mode).
+   * Off by default: the request only carries `thinking` when this is on.
+   */
+  thinking: boolean;
   enterToSend: boolean;
   /** Runs HTML/JS shipped inside character cards (Tavern Helper scripts + pages). */
   cardScripts: boolean;

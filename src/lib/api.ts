@@ -164,16 +164,29 @@ function extractDelta(json: Record<string, unknown>): string {
   return '';
 }
 
+/** Chain of thought in a streamed chunk (DeepSeek calls it reasoning_content). */
+function extractReasoning(json: Record<string, unknown>): string {
+  const choices = json.choices;
+  if (!Array.isArray(choices) || choices.length === 0) return '';
+  const choice = choices[0] as Record<string, unknown>;
+  const delta = (choice.delta ?? choice.message) as Record<string, unknown> | undefined;
+  if (!delta) return '';
+  const reasoning = delta.reasoning_content ?? delta.reasoning;
+  return typeof reasoning === 'string' ? reasoning : '';
+}
+
 export interface StreamOptions {
   settings: Settings;
   messages: ApiMessage[];
   signal?: AbortSignal;
   onDelta?: (text: string) => void;
+  /** Streams the model's chain of thought when thinking mode is on. */
+  onReasoning?: (text: string) => void;
   idleTimeoutMs?: number;
 }
 
 export async function streamChat(options: StreamOptions): Promise<string> {
-  const { settings, messages, signal, onDelta } = options;
+  const { settings, messages, signal, onDelta, onReasoning } = options;
   const url = chatEndpoint(settings.baseUrl);
   const controller = new AbortController();
   let timedOut = false;
@@ -200,6 +213,9 @@ export async function streamChat(options: StreamOptions): Promise<string> {
     temperature: settings.temperature,
   };
   if (settings.maxTokens > 0) body.max_tokens = Math.floor(settings.maxTokens);
+  // DeepSeek's OpenAI-compatible switch. Only sent when the user turned it on so
+  // other gateways keep their own default instead of rejecting the field.
+  if (settings.thinking) body.thinking = { type: 'enabled' };
 
   try {
     const res = await fetch(url, {
@@ -213,6 +229,8 @@ export async function streamChat(options: StreamOptions): Promise<string> {
     const contentType = res.headers.get('content-type') ?? '';
     if (!settings.stream || !res.body || contentType.includes('application/json')) {
       const json = (await res.json()) as Record<string, unknown>;
+      const reasoning = extractReasoning(json);
+      if (reasoning) onReasoning?.(reasoning);
       const text = extractDelta(json);
       if (!text) throw new ApiError('模型没有返回内容，请重试或更换模型。');
       onDelta?.(text);
@@ -256,6 +274,8 @@ export async function streamChat(options: StreamOptions): Promise<string> {
           }
           throw new ApiError(detail);
         }
+        const reasoning = extractReasoning(json);
+        if (reasoning) onReasoning?.(reasoning);
         const text = extractDelta(json);
         if (text) {
           full += text;

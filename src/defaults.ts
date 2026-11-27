@@ -17,6 +17,7 @@ export const DEFAULT_SETTINGS: Settings = {
   autoCompact: true,
   loreBudget: 16000,
   stream: true,
+  thinking: false,
   enterToSend: true,
   cardScripts: true,
   theme: 'system',
